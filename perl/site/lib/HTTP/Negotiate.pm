@@ -1,6 +1,6 @@
 package HTTP::Negotiate;
 
-$VERSION = "5.835";
+$VERSION = "6.00";
 sub Version { $VERSION; }
 
 require 5.002;
