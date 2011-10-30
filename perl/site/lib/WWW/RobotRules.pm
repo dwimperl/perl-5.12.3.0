@@ -1,6 +1,6 @@
 package WWW::RobotRules;
 
-$VERSION = "5.832";
+$VERSION = "6.01";
 sub Version { $VERSION; }
 
 use strict;
@@ -443,3 +443,11 @@ However, the intention is clear.
 =head1 SEE ALSO
 
 L<LWP::RobotUA>, L<WWW::RobotRules::AnyDBM_File>
+
+=head1 COPYRIGHT
+
+  Copyright 1995-2009, Gisle Aas
+  Copyright 1995, Martijn Koster
+
+This library is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.

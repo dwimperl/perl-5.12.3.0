@@ -2,7 +2,7 @@ package WWW::RobotRules::AnyDBM_File;
 
 require  WWW::RobotRules;
 @ISA = qw(WWW::RobotRules);
-$VERSION = "5.835";
+$VERSION = "6.00";
 
 use Carp ();
 use AnyDBM_File;
