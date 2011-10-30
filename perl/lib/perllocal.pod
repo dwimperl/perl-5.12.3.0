@@ -5498,3 +5498,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Sun Oct 30 21:51:59 2011: C<Module> L<Test::MockModule|Test::MockModule>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.05>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
