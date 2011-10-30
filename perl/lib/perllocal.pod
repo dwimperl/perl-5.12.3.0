@@ -4684,3 +4684,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Sun Oct 30 17:15:43 2011: C<Module> L<Sub::Exporter|Sub::Exporter>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.982>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
