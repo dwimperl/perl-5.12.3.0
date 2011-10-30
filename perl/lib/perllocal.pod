@@ -5608,3 +5608,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Sun Oct 30 22:14:25 2011: C<Module> L<WWW::Mechanize|WWW::Mechanize>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.70>
+
+=item *
+
+C<EXE_FILES: bin/mech-dump>
+
+=back
+
