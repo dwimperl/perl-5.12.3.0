@@ -5718,3 +5718,25 @@ C<EXE_FILES: bin/weblint>
 
 =back
 
+=head2 Sun Oct 30 22:22:59 2011: C<Module> L<Test::WWW::Mechanize|Test::WWW::Mechanize>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.38>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
