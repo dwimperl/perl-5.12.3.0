@@ -2,7 +2,7 @@ package HTTP::Response;
 
 require HTTP::Message;
 @ISA = qw(HTTP::Message);
-$VERSION = "5.836";
+$VERSION = "6.01";
 
 use strict;
 use HTTP::Status ();
@@ -143,12 +143,8 @@ sub filename
 			}
 
 			require Encode;
-			require encoding;
-			# This is ugly use of non-public API, but is there
-			# a better way to accomplish what we want (locally
-			# as-is usable filename string)?
-			my $locale_charset = encoding::_get_locale_encoding();
-			Encode::from_to($encfile, $charset, $locale_charset);
+			require Encode::Locale;
+			Encode::from_to($encfile, $charset, "locale_fs");
 		    };
 
 		    $file = $encfile unless $@;
@@ -221,10 +217,11 @@ sub is_error    { HTTP::Status::is_error    (shift->{'_rc'}); }
 
 sub error_as_HTML
 {
-    require HTML::Entities;
     my $self = shift;
     my $title = 'An Error Occurred';
-    my $body  = HTML::Entities::encode($self->status_line);
+    my $body  = $self->status_line;
+    $body =~ s/&/&amp;/g;
+    $body =~ s/</&lt;/g;
     return <<EOM;
 <html>
 <head><title>$title</title></head>
