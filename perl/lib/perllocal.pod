@@ -4618,3 +4618,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Sun Oct 30 17:08:49 2011: C<Module> L<Data::UUID|Data::UUID>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.217>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
