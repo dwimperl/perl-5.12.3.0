@@ -5696,3 +5696,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Sun Oct 30 22:21:34 2011: C<Module> L<HTML::Lint|HTML::Lint>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 2.06>
+
+=item *
+
+C<EXE_FILES: bin/weblint>
+
+=back
+
