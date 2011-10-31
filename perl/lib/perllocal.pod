@@ -5938,3 +5938,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Oct 31 14:05:47 2011: C<Module> L<Package::Stash|Package::Stash>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.33>
+
+=item *
+
+C<EXE_FILES: bin/package-stash-conflicts>
+
+=back
+
