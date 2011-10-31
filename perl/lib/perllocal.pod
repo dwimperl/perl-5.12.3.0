@@ -6730,3 +6730,25 @@ C<EXE_FILES: script/padre>
 
 =back
 
+=head2 Mon Oct 31 21:22:48 2011: C<Module> L<App::cpanoutdated|App::cpanoutdated>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.19>
+
+=item *
+
+C<EXE_FILES: bin/cpan-outdated>
+
+=back
+
