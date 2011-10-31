@@ -6466,3 +6466,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Oct 31 20:47:09 2011: C<Module> L<ORLite|ORLite>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.50>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
