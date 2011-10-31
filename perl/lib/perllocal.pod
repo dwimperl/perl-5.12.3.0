@@ -6378,3 +6378,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Oct 31 15:54:55 2011: C<Module> L<File::HomeDir|File::HomeDir>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.98>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+

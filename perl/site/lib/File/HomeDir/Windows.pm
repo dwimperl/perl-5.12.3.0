@@ -10,7 +10,7 @@ use File::HomeDir::Driver ();
 
 use vars qw{$VERSION @ISA};
 BEGIN {
-	$VERSION = '0.97';
+	$VERSION = '0.98';
 	@ISA     = 'File::HomeDir::Driver';
 }
 
@@ -55,14 +55,14 @@ sub my_desktop {
 	SCOPE: {
 		require Win32;
 		my $dir = Win32::GetFolderPath(Win32::CSIDL_DESKTOP(), CREATE);
-		return $dir if $dir and -d $dir;
+		return $dir if $dir and $class->_d($dir);
 	}
 
 	# MSWindows sets WINDIR, MS WinNT sets USERPROFILE.
 	foreach my $e ( 'USERPROFILE', 'WINDIR' ) {
 		next unless $ENV{$e};
 		my $desktop = File::Spec->catdir($ENV{$e}, 'Desktop');
-		return $desktop if $desktop and -d $desktop;
+		return $desktop if $desktop and $class->_d($desktop);
 	}
 
 	# As a last resort, try some hard-wired values
@@ -76,7 +76,7 @@ sub my_desktop {
 		"C:/win95/desktop",
 		"C:/windows/desktop",
 	) {
-		return $fixed if -d $fixed;
+		return $fixed if $class->_d($fixed);
 	}
 
 	return undef;
@@ -89,7 +89,7 @@ sub my_documents {
 	SCOPE: {
 		require Win32;
 		my $dir = Win32::GetFolderPath(Win32::CSIDL_PERSONAL(), CREATE);
-		return $dir if $dir and -d $dir;
+		return $dir if $dir and $class->_d($dir);
 	}
 
 	return undef;
@@ -102,7 +102,7 @@ sub my_data {
 	SCOPE: {
 		require Win32;
 		my $dir = Win32::GetFolderPath(Win32::CSIDL_LOCAL_APPDATA(), CREATE);
-		return $dir if $dir and -d $dir;
+		return $dir if $dir and $class->_d($dir);
 	}
 
 	return undef;
@@ -115,7 +115,7 @@ sub my_music {
 	SCOPE: {
 		require Win32;
 		my $dir = Win32::GetFolderPath(Win32::CSIDL_MYMUSIC(), CREATE);
-		return $dir if $dir and -d $dir;
+		return $dir if $dir and $class->_d($dir);
 	}
 
 	return undef;
@@ -128,7 +128,7 @@ sub my_pictures {
 	SCOPE: {
 		require Win32;
 		my $dir = Win32::GetFolderPath(Win32::CSIDL_MYPICTURES(), CREATE);
-		return $dir if $dir and -d $dir;
+		return $dir if $dir and $class->_d($dir);
 	}
 
 	return undef;
@@ -141,10 +141,32 @@ sub my_videos {
 	SCOPE: {
 		require Win32;
 		my $dir = Win32::GetFolderPath(Win32::CSIDL_MYVIDEO(), CREATE);
-		return $dir if $dir and -d $dir;
+		return $dir if $dir and $class->_d($dir);
 	}
 
 	return undef;
+}
+
+# Special case version of -d
+sub _d {
+	my $self = shift;
+	my $path = shift;
+
+	# Window can legally return a UNC path from GetFolderPath.
+	# Not only is the meaning of -d complicated in this situation,
+	# but even on a local network calling -d "\\\\cifs\\path" can
+	# take several seconds. UNC can also do even weirder things,
+	# like launching processes and such.
+	# To avoid various crazy bugs caused by this, we do NOT attempt
+	# to validate UNC paths at all so that the code that is calling
+	# us has an opportunity to take special actions without our 
+	# blundering getting in the way.
+	if ( $path =~ /\\\\/ ) {
+		return 1;
+	}
+
+	# Otherwise do a stat as normal
+	return -d $path;
 }
 
 1;
@@ -173,6 +195,22 @@ File::HomeDir::Windows - Find your home and other directories on Windows
 This module provides Windows-specific implementations for determining
 common user directories.  In normal usage this module will always be
 used via L<File::HomeDir>.
+
+Internally this module will use L<Win32>::GetFolderPath to fetch the location
+of your directories. As a result of this, in certain unusual situations
+(usually found inside large organisations) the methods may return UNC paths
+such as C<\\cifs.local\home$>.
+
+If your application runs on Windows and you want to have it work comprehensively
+everywhere, you may need to implement your own handling for these paths as they
+can cause strange behaviour.
+
+For example, stat calls to UNC paths may work but block for several seconds, but
+opendir() may not be able to read any files (creating the appearance of an existing
+but empty directory).
+
+To avoid complicating the problem any further, in the rare situation that a UNC path
+is returned by C<GetFolderPath> the usual -d validation checks will B<not> be done.
 
 =head1 SUPPORT
 
