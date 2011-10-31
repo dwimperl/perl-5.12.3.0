@@ -6334,3 +6334,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Oct 31 15:52:37 2011: C<Module> L<Devel::Refactor|Devel::Refactor>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.05>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
