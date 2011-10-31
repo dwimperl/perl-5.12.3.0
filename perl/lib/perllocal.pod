@@ -5982,3 +5982,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Oct 31 14:13:03 2011: C<Module> L<Moose|Moose>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 2.0205>
+
+=item *
+
+C<EXE_FILES: bin/moose-outdated>
+
+=back
+
