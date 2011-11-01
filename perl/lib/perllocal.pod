@@ -6906,3 +6906,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Tue Nov  1 15:54:10 2011: C<Module> L<App::pmuninstall|App::pmuninstall>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.25>
+
+=item *
+
+C<EXE_FILES: bin/pm-uninstall>
+
+=back
+
