@@ -7500,3 +7500,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Tue Nov  1 17:41:51 2011: C<Module> L<Data::Dumper::Concise|Data::Dumper::Concise>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 2.020>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
