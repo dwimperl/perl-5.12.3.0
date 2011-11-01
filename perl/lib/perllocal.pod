@@ -7016,3 +7016,25 @@ C<EXE_FILES: script/win32envpath>
 
 =back
 
+=head2 Tue Nov  1 16:05:51 2011: C<Module> L<Crypt::RC4|Crypt::RC4>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 2.02>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
