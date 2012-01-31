@@ -8,7 +8,7 @@ use Padre::Task     ();
 use Padre::Constant ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Task';
 
 
@@ -23,10 +23,14 @@ sub prepare {
 	TRACE( $_[0] ) if DEBUG;
 	my $self = shift;
 
+	my $new_count;
+
 	# Save the list of open files
 	require Padre::Current;
-	$self->{changes} =
-		{ map { $_->filename => $_->text_get, } grep { $_->is_unsaved } Padre::Current->main->documents };
+	$self->{changes} = {
+		map { ( $_->filename || 'NEW' . ( ++$new_count ) ) => $_->text_get, }
+		grep { $_->is_modified } Padre::Current->main->documents
+	};
 
 	return 1;
 }
@@ -60,7 +64,7 @@ sub run {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

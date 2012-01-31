@@ -50,7 +50,7 @@ use strict;
 use warnings;
 use Padre::Wx ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 =pod
 
@@ -70,7 +70,7 @@ sub message {
 	Wx::MessageBox(
 		$message,
 		$title,
-		Wx::wxOK | Wx::wxCENTRE,
+		Wx::OK | Wx::CENTRE,
 		$self,
 	);
 	return;
@@ -93,7 +93,7 @@ sub error {
 	Wx::MessageBox(
 		$message,
 		Wx::gettext('Error'),
-		Wx::wxOK | Wx::wxCENTRE | Wx::wxICON_HAND,
+		Wx::OK | Wx::CENTRE | Wx::ICON_HAND,
 		$self,
 	);
 	return;
@@ -115,7 +115,7 @@ sub password {
 	my $dialog = Wx::PasswordEntryDialog->new( $self, @_ );
 	my $result = undef;
 	$dialog->CenterOnParent;
-	unless ( $dialog->ShowModal == Wx::wxID_CANCEL ) {
+	unless ( $dialog->ShowModal == Wx::ID_CANCEL ) {
 		$result = $dialog->GetValue;
 	}
 	$dialog->Destroy;
@@ -143,10 +143,10 @@ sub yes_no {
 		$self,
 		$message,
 		$title,
-		Wx::wxYES_NO | Wx::wxYES_DEFAULT | Wx::wxICON_QUESTION,
+		Wx::YES_NO | Wx::YES_DEFAULT | Wx::ICON_QUESTION,
 	);
 	$dialog->CenterOnParent;
-	my $result = ( $dialog->ShowModal == Wx::wxID_YES ) ? 1 : 0;
+	my $result = ( $dialog->ShowModal == Wx::ID_YES ) ? 1 : 0;
 	$dialog->Destroy;
 	return $result;
 }
@@ -177,7 +177,7 @@ sub single_choice {
 	my $dialog = Wx::SingleChoiceDialog->new( $self, @_ );
 	my $result = undef;
 	$dialog->CenterOnParent;
-	unless ( $dialog->ShowModal == Wx::wxID_CANCEL ) {
+	unless ( $dialog->ShowModal == Wx::ID_CANCEL ) {
 		$result = $_[2]->[ $dialog->GetSelection ];
 	}
 	$dialog->Destroy;
@@ -208,7 +208,7 @@ sub multi_choice {
 	my $dialog = Wx::MultiChoiceDialog->new( $self, @_ );
 	my @result = ();
 	$dialog->CenterOnParent;
-	unless ( $dialog->ShowModal == Wx::wxID_CANCEL ) {
+	unless ( $dialog->ShowModal == Wx::ID_CANCEL ) {
 		@result = map { $_[2]->[$_] } $dialog->GetSelections;
 	}
 	$dialog->Destroy;
@@ -217,7 +217,7 @@ sub multi_choice {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

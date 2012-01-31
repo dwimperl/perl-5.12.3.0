@@ -11,13 +11,13 @@ use utf8;
 use Encode                ();
 use File::Spec            ();
 use Params::Util          ();
+use Padre::Feature        ();
 use Padre::Wx::Role::View ();
 use Padre::Wx::Role::Main ();
-use Padre::Wx             ();
+use Padre::Wx 'RichText';
 use Padre::Logger;
-use Wx::RichText; # Is this necesary?
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::View
 	Padre::Wx::Role::Main
@@ -41,12 +41,12 @@ sub new {
 		$panel,
 		-1,
 		"",
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxTE_READONLY
-			| Wx::wxTE_MULTILINE
-			| Wx::wxTE_DONTWRAP
-			| Wx::wxNO_FULL_REPAINT_ON_RESIZE,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::TE_READONLY
+			| Wx::TE_MULTILINE
+			| Wx::TE_DONTWRAP
+			| Wx::NO_FULL_REPAINT_ON_RESIZE,
 	);
 
 	# Do custom start-up stuff here
@@ -63,6 +63,10 @@ sub new {
 		},
 	);
 
+	if (Padre::Feature::STYLE_GUI) {
+		$self->main->theme->apply($self);
+	}
+
 	return $self;
 }
 
@@ -78,7 +82,7 @@ sub view_panel {
 }
 
 sub view_label {
-	shift->gettext_label(@_);
+	Wx::gettext('Output');
 }
 
 sub view_close {
@@ -187,15 +191,6 @@ sub setup_bindings {
 #####################################################################
 # General Methods
 
-sub bottom {
-	warn "Unexpectedly called Padre::Wx::Output::bottom, it should be deprecated";
-	shift->main->bottom;
-}
-
-sub gettext_label {
-	Wx::gettext('Output');
-}
-
 # From Sean Healy on wxPerl mailing list.
 # Tweaked to avoid strings copying as much as possible.
 sub AppendText {
@@ -280,19 +275,19 @@ SCOPE: {
 						$style->SetTextColour( $fg_colors->[9] );       # reset text color
 						$style->SetBackgroundColour( $bg_colors->[9] ); # reset bg color
 						                                                # reset bold/italic/underlined state
-						$font->SetWeight(Wx::wxFONTWEIGHT_NORMAL);
+						$font->SetWeight(Wx::FONTWEIGHT_NORMAL);
 						$font->SetUnderlined(0);
-						$font->SetStyle(Wx::wxFONTSTYLE_NORMAL);
+						$font->SetStyle(Wx::FONTSTYLE_NORMAL);
 					} elsif ( $cmd == 1 ) {                             # bold
-						$font->SetWeight(Wx::wxFONTWEIGHT_BOLD);
+						$font->SetWeight(Wx::FONTWEIGHT_BOLD);
 					} elsif ( $cmd == 2 ) {                             # faint
-						$font->SetWeight(Wx::wxFONTWEIGHT_LIGHT);
+						$font->SetWeight(Wx::FONTWEIGHT_LIGHT);
 					} elsif ( $cmd == 3 ) {                             # italic
-						$font->SetStyle(Wx::wxFONTSTYLE_ITALIC);
+						$font->SetStyle(Wx::FONTSTYLE_ITALIC);
 					} elsif ( $cmd == 4 || $cmd == 21 ) {               # underline (21==double, but we can't do that)
 						$font->SetUnderlined(1);
 					} elsif ( $cmd == 22 ) {                            # reset bold and faint
-						$font->SetWeight(Wx::wxFONTWEIGHT_NORMAL);
+						$font->SetWeight(Wx::FONTWEIGHT_NORMAL);
 					} elsif ( $cmd == 24 ) {                            # reset underline
 						$font->SetUnderlined(0);
 					}
@@ -420,7 +415,7 @@ sub style_busy {
 
 sub set_font {
 	my $self = shift;
-	my $font = Wx::Font->new( 10, Wx::wxTELETYPE, Wx::wxNORMAL, Wx::wxNORMAL );
+	my $font = Wx::Font->new( 9, Wx::TELETYPE, Wx::NORMAL, Wx::NORMAL );
 	my $name = $self->config->editor_font;
 	if ( defined $name and length $name ) {
 		$font->SetNativeFontInfoUserDesc($name);
@@ -438,7 +433,7 @@ sub relocale {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

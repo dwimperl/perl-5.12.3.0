@@ -9,8 +9,8 @@ use File::Spec      ();
 use Padre::Constant ();
 use Padre::Current  ();
 
-our $VERSION    = '0.90';
-our $COMPATIBLE = '0.81';
+our $VERSION    = '0.94';
+our $COMPATIBLE = '0.93';
 
 
 
@@ -21,7 +21,7 @@ our $COMPATIBLE = '0.81';
 
 sub new {
 	my $class = shift;
-	my $self = bless {@_}, $class;
+	my $self  = bless { @_ }, $class;
 
 	# Flag to indicate this root is specifically provided by a user
 	# and is not intuited.
@@ -132,6 +132,14 @@ sub headline {
 	return undef;
 }
 
+# As above but an absolute path
+sub headline_path {
+	my $self     = shift;
+	my $headline = $self->headline;
+	return undef unless defined $headline;
+	File::Spec->catfile( $self->root, $headline );
+}
+
 # Intuit the distribution version if possible
 sub version {
 	return undef;
@@ -154,19 +162,19 @@ sub _vcs {
 	my $class = shift;
 	my $root  = shift;
 	if ( -d File::Spec->catdir( $root, '.svn' ) ) {
-		return 'SVN';
+		return Padre::Constant::SUBVERSION;
 	}
 	if ( -d File::Spec->catdir( $root, '.git' ) ) {
-		return 'Git';
+		return Padre::Constant::GIT;
 	}
 	if ( -d File::Spec->catdir( $root, '.hg' ) ) {
-		return 'Mercurial';
+		return Padre::Constant::MERCURIAL;
 	}
 	if ( -d File::Spec->catdir( $root, '.bzr' ) ) {
-		return 'Bazaar';
+		return Padre::Constant::BAZAAR;
 	}
 	if ( -f File::Spec->catfile( $root, 'CVS', 'Repository' ) ) {
-		return 'CVS';
+		return Padre::Constant::CVS;
 	}
 	return undef;
 }
@@ -366,7 +374,7 @@ sub DESTROY {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

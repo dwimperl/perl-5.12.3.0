@@ -7,7 +7,7 @@ use Params::Util qw{_INSTANCE};
 use Padre::Wx       ();
 use Padre::Wx::Icon ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Wx::ListView';
 
 sub new {
@@ -18,16 +18,16 @@ sub new {
 	my $self = $class->SUPER::new(
 		$frame,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxLC_REPORT | Wx::wxLC_SINGLE_SEL
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::LC_REPORT | Wx::LC_SINGLE_SEL
 	);
 	$self->{cpan} = $frame->cpan;
 
 	my $imagelist = Wx::ImageList->new( 14, 7 );
 	$imagelist->Add( Padre::Wx::Icon::icon('status/padre-syntax-error') );
 	$imagelist->Add( Padre::Wx::Icon::icon('status/padre-syntax-warning') );
-	$self->AssignImageList( $imagelist, Wx::wxIMAGE_LIST_SMALL );
+	$self->AssignImageList( $imagelist, Wx::IMAGE_LIST_SMALL );
 
 	$self->InsertColumn( 0, Wx::gettext('Status') );
 
@@ -45,10 +45,6 @@ sub bottom {
 sub main {
 	$_[0]->GetGrandParent;
 }
-
-#sub gettext_label {
-#	Wx::gettext('Syntax Check');
-#}
 
 sub clear {
 	my $self = shift;
@@ -109,7 +105,7 @@ sub on_list_item_activated {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

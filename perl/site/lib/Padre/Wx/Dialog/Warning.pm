@@ -7,7 +7,7 @@ use Padre::Wx             ();
 use Padre::Wx::Role::Main ();
 use Padre::Locale         ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Wx::Dialog
@@ -30,47 +30,47 @@ sub new {
 		$main,
 		-1,
 		Wx::gettext('A Dialog'),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxCAPTION | Wx::wxCLOSE_BOX | Wx::wxSYSTEM_MENU
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::CAPTION | Wx::CLOSE_BOX | Wx::SYSTEM_MENU
 	);
 
 	$self->{warning_label} = Wx::StaticText->new(
 		$self,
 		-1,
 		Wx::gettext("See http://padre.perlide.org/ for update information"),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxALIGN_CENTRE,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::ALIGN_CENTRE,
 	);
 	$self->{warning_checkbox} = Wx::CheckBox->new(
 		$self,
 		-1,
 		Wx::gettext("Do not show this again"),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 	);
 	my $line_1 = Wx::StaticLine->new(
 		$self,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 	);
 	$self->{ok_button} = Wx::Button->new(
 		$self,
-		Wx::wxID_OK,
+		Wx::ID_OK,
 		"",
 	);
 	$self->SetTitle( Wx::gettext("Warning") );
-	my $sizer_4 = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	my $sizer_5 = Wx::BoxSizer->new(Wx::wxVERTICAL);
-	my $sizer_6 = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$sizer_5->Add( $self->{warning_label},    0, 0,                                       0 );
-	$sizer_5->Add( $self->{warning_checkbox}, 0, Wx::wxTOP | Wx::wxEXPAND,                5 );
-	$sizer_5->Add( $line_1,                   0, Wx::wxTOP | Wx::wxBOTTOM | Wx::wxEXPAND, 5 );
-	$sizer_6->Add( $self->{ok_button},        0, 0,                                       0 );
-	$sizer_5->Add( $sizer_6,                  1, Wx::wxALIGN_CENTER_HORIZONTAL,           5 );
-	$sizer_4->Add( $sizer_5,                  1, Wx::wxALL | Wx::wxEXPAND,                5 );
+	my $sizer_4 = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	my $sizer_5 = Wx::BoxSizer->new(Wx::VERTICAL);
+	my $sizer_6 = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$sizer_5->Add( $self->{warning_label},    0, 0,                                 0 );
+	$sizer_5->Add( $self->{warning_checkbox}, 0, Wx::TOP | Wx::EXPAND,              5 );
+	$sizer_5->Add( $line_1,                   0, Wx::TOP | Wx::BOTTOM | Wx::EXPAND, 5 );
+	$sizer_6->Add( $self->{ok_button},        0, 0,                                 0 );
+	$sizer_5->Add( $sizer_6,                  1, Wx::ALIGN_CENTER_HORIZONTAL,       5 );
+	$sizer_4->Add( $sizer_5,                  1, Wx::ALL | Wx::EXPAND,              5 );
 	$self->SetSizer($sizer_4);
 	$sizer_4->Fit($self);
 
@@ -83,7 +83,7 @@ sub new {
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -93,7 +93,7 @@ LICENSE file included with this module.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

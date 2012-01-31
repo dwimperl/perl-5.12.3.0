@@ -5,70 +5,10 @@ package Padre::DB::Timeline;
 use 5.008005;
 use strict;
 use warnings;
-use DBI          ();
-use DBD::SQLite  ();
-use Params::Util ();
+use ORLite::Migrate::Timeline ();
 
-our $VERSION = '0.90';
-
-
-
-
-
-######################################################################
-# Constructor
-
-sub new {
-	my $class = shift;
-	my $self = bless {@_}, $class;
-
-	# Check the database handle
-	unless ( Params::Util::_INSTANCE( $self->dbh, 'DBI::db' ) ) {
-		die "Missing or invalid dbh database handle";
-	}
-	unless ( $self->dbh->{AutoCommit} ) {
-		die "Database connection must be AutoCommit";
-	}
-
-	return $self;
-}
-
-sub dbh {
-	$_[0]->{dbh};
-}
-
-
-
-
-
-#######################################################################
-# Main Methods
-
-sub upgrade {
-	my $self = shift;
-	my $want = Params::Util::_POSINT(shift);
-	my $have = $self->user_version;
-
-	# Roll the schema forwards
-	while ( $want and $want > $have ) {
-
-		# Find the migration step
-		my $method = "upgrade" . ++$have;
-		unless ( $self->can($method) ) {
-			die "No migration path to user_version $want";
-		}
-
-		# Run the migration step
-		unless ( eval { $self->$method } ) {
-			die "Schema migration failed during $method: $@";
-		}
-
-		# Confirm completion
-		$self->user_version($have);
-	}
-
-	return 1;
-}
+our $VERSION = '0.94';
+our @ISA     = 'ORLite::Migrate::Timeline';
 
 
 
@@ -76,6 +16,39 @@ sub upgrade {
 
 ######################################################################
 # Schema Migration (reverse chronological for readability)
+
+sub upgrade13 {
+	my $self = shift;
+
+	# Drop the syntax highlight table as we now have current
+	# Scintilla and the pressure to have highlighter plugins
+	# is greatly reduced.
+	$self->do('DROP TABLE syntax_highlight');
+
+	# Reindex to take advantage of SQLite 3.7.8 improvements
+	# to indexing speed and layout that arrived between the
+	# release of Padre 0.92 and 0.94
+	$self->do('REINDEX');
+
+	return 1;
+}
+
+sub upgrade12 {
+	my $self = shift;
+
+	# Create the debug breakpoints table
+	$self->do(<<'END_SQL');
+CREATE TABLE debug_breakpoints (
+	id INTEGER NOT NULL PRIMARY KEY,
+	filename VARCHAR(255) NOT NULL,
+	line_number INTEGER NOT NULL,
+	active BOOLEAN NOT NULL,
+	last_used DATE
+)
+END_SQL
+
+	return 1;
+}
 
 sub upgrade11 {
 	my $self = shift;
@@ -350,65 +323,9 @@ END_SQL
 	return 1;
 }
 
-
-
-
-
-######################################################################
-# Support Methods
-
-sub do {
-	shift->dbh->do(@_);
-}
-
-sub selectall_arrayref {
-	shift->dbh->selectall_arrayref(@_);
-}
-
-sub selectall_hashref {
-	shift->dbh->selectall_hashref(@_);
-}
-
-sub selectcol_arrayref {
-	shift->dbh->selectcol_arrayref(@_);
-}
-
-sub selectrow_array {
-	shift->dbh->selectrow_array(@_);
-}
-
-sub selectrow_arrayref {
-	shift->dbh->selectrow_arrayref(@_);
-}
-
-sub selectrow_hashref {
-	shift->dbh->selectrow_hashref(@_);
-}
-
-sub user_version {
-	shift->pragma( 'user_version', @_ );
-}
-
-sub pragma {
-	$_[0]->do("pragma $_[1] = $_[2]") if @_ > 2;
-	$_[0]->selectrow_arrayref("pragma $_[1]")->[0];
-}
-
-sub table_exists {
-	$_[0]->selectrow_array(
-		"select count(*) from sqlite_master where type = 'table' and name = ?",
-		{}, $_[1],
-	);
-}
-
-sub column_exists {
-	$_[0]->table_exists( $_[1] )
-		or $_[0]->selectrow_array( "select count($_[2]) from $_[1]", {} );
-}
-
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

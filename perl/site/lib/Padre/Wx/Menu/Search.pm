@@ -10,7 +10,7 @@ use Padre::Wx::Menu ();
 use Padre::Current  ();
 use Padre::Feature  ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Wx::Menu';
 
 
@@ -59,11 +59,9 @@ sub new {
 	);
 
 	# Recursive Replace
-	if (Padre::Feature::REPLACEINFILES) {
-		$self->add_menu_action(
-			'search.replace_in_files',
-		);
-	}
+	$self->add_menu_action(
+		'search.replace_in_files',
+	);
 
 	# Special Search
 
@@ -124,7 +122,7 @@ sub refresh {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

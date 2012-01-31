@@ -4,7 +4,7 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 =head1 NAME
 
@@ -81,7 +81,7 @@ sub _report {
 	#++$line; # Editor starts counting at 0
 
 	# These are two lines to enable the translators to use argument numbers:
-	$self->{error} = Wx::gettext( sprintf( 'Line %d: ', $line ) ) . Wx::gettext( sprintf( $text, @_ ) );
+	$self->{error} = sprintf( Wx::gettext('Line %d: %s'), $line, sprintf( Wx::gettext($text), @_ ) );
 
 	return;
 }
@@ -359,7 +359,7 @@ could turn it off by setting this to 0 within the Padre configuration file.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -371,7 +371,7 @@ LICENSE file included with this module.
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

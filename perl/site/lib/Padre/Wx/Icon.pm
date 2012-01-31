@@ -22,7 +22,7 @@ use Params::Util ();
 use Padre::Util  ();
 use Padre::Wx    ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 # For now apply a single common configuration
 use constant SIZE   => '16x16';
@@ -102,7 +102,7 @@ sub find {
 			( split /\//, $hinted )
 		) . $pref{ext};
 		next unless -f $file;
-		return Wx::Bitmap->new( $file, Wx::wxBITMAP_TYPE_PNG );
+		return Wx::Bitmap->new( $file, Wx::BITMAP_TYPE_PNG );
 	}
 
 	if ( defined $DEFAULT_ICON ) {
@@ -134,7 +134,7 @@ sub cast_to_icon {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

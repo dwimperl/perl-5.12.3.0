@@ -9,8 +9,9 @@ use List::Util      ();
 use Padre::Wx       ();
 use Padre::Wx::Menu ();
 use Padre::Current  ();
+use Padre::Feature  ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Wx::Menu';
 
 
@@ -30,14 +31,6 @@ sub new {
 	$self->{main} = $main;
 
 	# File Navigation
-	$self->{window_last_visited_file} = $self->add_menu_action(
-		'window.last_visited_file',
-	);
-
-	$self->{window_oldest_visited_file} = $self->add_menu_action(
-		'window.oldest_visited_file',
-	);
-
 	$self->{window_next_file} = $self->add_menu_action(
 		'window.next_file',
 	);
@@ -46,20 +39,8 @@ sub new {
 		'window.previous_file',
 	);
 
-	# TODO: Remove this and the menu option as soon as #750 is fixed
-	#       as it's the same like Ctrl-Tab
-	$self->add_menu_action(
-		'window.last_visited_file_old',
-	);
-
-	$self->add_menu_action(
-		'window.goto_previous_position',
-	);
-
-	$self->add_menu_action(
-		'window.show_previous_positions',
-	);
-
+	$self->AppendSeparator;
+	
 	$self->{window_right_click} = $self->add_menu_action(
 		'window.right_click',
 	);
@@ -67,6 +48,14 @@ sub new {
 	$self->AppendSeparator;
 
 	# Window Navigation
+	$self->{window_goto_command_window} = $self->add_menu_action(
+		'window.goto_command_window',
+	);
+
+	$self->{window_goto_cpan_window} = $self->add_menu_action(
+		'window.goto_cpan_window',
+	) if Padre::Feature::CPAN;
+
 	$self->{window_goto_functions_window} = $self->add_menu_action(
 		'window.goto_functions_window',
 	);
@@ -75,16 +64,12 @@ sub new {
 		'window.goto_outline_window',
 	);
 
-	$self->{window_goto_syntax_check_window} = $self->add_menu_action(
-		'window.goto_syntax_check_window',
-	);
-
-	$self->{window_goto_command_line_window} = $self->add_menu_action(
-		'window.goto_command_line_window',
-	);
-
 	$self->{window_goto_main_window} = $self->add_menu_action(
 		'window.goto_main_window',
+	);
+
+	$self->{window_goto_syntax_check_window} = $self->add_menu_action(
+		'window.goto_syntax_check_window',
 	);
 
 	# Save everything we need to keep
@@ -107,7 +92,6 @@ sub refresh {
 	my $enable = $pages ? 1 : 0;
 	$self->{window_next_file}->Enable($enable);
 	$self->{window_previous_file}->Enable($enable);
-	$self->{window_last_visited_file}->Enable($enable);
 	$self->{window_right_click}->Enable($enable);
 
 	return 1;
@@ -166,7 +150,7 @@ sub refresh_windowlist {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

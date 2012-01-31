@@ -3,11 +3,10 @@ package Padre::Wx::Dialog::WindowList;
 use 5.008;
 use strict;
 use warnings;
-
 use Padre::Wx       ();
 use Padre::Wx::Icon ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Wx::Dialog';
 
 use Class::XSAccessor {
@@ -33,9 +32,9 @@ sub new {
 		$parent,
 		-1,
 		Wx::gettext( $args{title} || Wx::gettext('Window list') ),
-		Wx::wxDefaultPosition,
+		Wx::DefaultPosition,
 		Wx::Size->new( 480, 300 ),
-		Wx::wxDEFAULT_FRAME_STYLE | Wx::wxTAB_TRAVERSAL,
+		Wx::DEFAULT_FRAME_STYLE | Wx::TAB_TRAVERSAL,
 	);
 
 	foreach ( keys %args ) {
@@ -51,7 +50,7 @@ sub new {
 
 	$self->SetIcon(Padre::Wx::Icon::PADRE);
 
-	if ( scalar Padre->ide->wx->main->pages ) {
+	if ( scalar Padre->ide->wx->main->editors ) {
 
 		# Create dialog
 		$self->_create;
@@ -181,7 +180,7 @@ sub _create {
 	my $self = shift;
 
 	# create vertical box that will host all controls
-	my $vbox = Wx::BoxSizer->new(Wx::wxVERTICAL);
+	my $vbox = Wx::BoxSizer->new(Wx::VERTICAL);
 	$self->SetSizer($vbox);
 	$self->CenterOnParent;
 
@@ -210,15 +209,15 @@ sub _create_list {
 		$self, -1,
 		$self->{list_title} || Wx::gettext('List of open files')
 	);
-	$vbox->Add( $label, 0, Wx::wxALL, 5 );
+	$vbox->Add( $label, 0, Wx::ALL, 5 );
 
 	# create list
 	my $list = Wx::ListCtrl->new(
 		$self,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxLC_REPORT,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::LC_REPORT,
 	);
 	$list->InsertColumn( 0, Wx::gettext('Project') );
 	$list->InsertColumn( 1, Wx::gettext('File') );
@@ -232,7 +231,7 @@ sub _create_list {
 	Wx::Event::EVT_LIST_COL_CLICK( $self, $list, \&_on_list_col_click );
 
 	# pack the list
-	$vbox->Add( $list, 1, Wx::wxALL | Wx::wxEXPAND, 5 );
+	$vbox->Add( $list, 1, Wx::ALL | Wx::EXPAND, 5 );
 }
 
 #
@@ -248,8 +247,8 @@ sub _create_options {
 	my $config = Padre->ide->config;
 
 	# the hbox
-	my $hbox = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$self->_vbox->Add( $hbox, 0, Wx::wxALL | Wx::wxEXPAND, 5 );
+	my $hbox = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$self->_vbox->Add( $hbox, 0, Wx::ALL | Wx::EXPAND, 5 );
 
 	# CheckBox
 	#	$self->{autosave} = Wx::CheckBox->new(
@@ -259,7 +258,7 @@ sub _create_options {
 	#	);
 	#	$self->{autosave}->SetValue( $config->session_autosave ? 1 : 0 );
 	#
-	#	$hbox->Add( $self->{autosave}, 0, Wx::wxALL, 5 );
+	#	$hbox->Add( $self->{autosave}, 0, Wx::ALL, 5 );
 }
 
 #
@@ -273,11 +272,11 @@ sub _create_buttons {
 	my $self = shift;
 
 	# the hbox
-	my $hbox = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$self->_vbox->Add( $hbox, 0, Wx::wxALL | Wx::wxEXPAND, 5 );
+	my $hbox = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$self->_vbox->Add( $hbox, 0, Wx::ALL | Wx::EXPAND, 5 );
 
 	# the buttons
-	my $bc = Wx::Button->new( $self, Wx::wxID_CANCEL, Wx::gettext('Close') );
+	my $bc = Wx::Button->new( $self, Wx::ID_CANCEL, Wx::gettext('Close') );
 	Wx::Event::EVT_BUTTON( $self, $bc, \&_on_butclose_clicked );
 
 	foreach my $button_no ( 0 .. $#{ $self->{buttons} || [] } ) {
@@ -288,10 +287,10 @@ sub _create_buttons {
 		my $button = $self->{buttons}->[$button_no];
 		$button->[2] = Wx::Button->new( $self, -1, $button->[0] );
 		Wx::Event::EVT_BUTTON( $self, $button->[2], $self->{button_clicks}->[$button_no] );
-		$hbox->Add( $button->[2], 0, Wx::wxALL, 5 );
+		$hbox->Add( $button->[2], 0, Wx::ALL, 5 );
 	}
 	$hbox->AddStretchSpacer;
-	$hbox->Add( $bc, 0, Wx::wxALL, 5 );
+	$hbox->Add( $bc, 0, Wx::ALL, 5 );
 }
 
 #
@@ -313,9 +312,9 @@ sub _refresh_list {
 	my $list = $self->_list;
 	$list->DeleteAllItems;
 	$self->{items} = []; # Clear
-	foreach my $page ( $main->pages ) {
+	foreach my $editor ( $main->editors ) {
 
-		my $document = $page->{Document};
+		my $document = $editor->{Document};
 
 		my $disk_state = $document->has_changed_on_disk;
 		next if $self->{no_fresh} and ( !( $document->is_modified or $disk_state ) );
@@ -331,7 +330,7 @@ sub _refresh_list {
 
 			# Apply filter (if any)
 			if ( defined( $self->{filter} ) ) {
-				next unless &{ $self->{filter} }( $page, $project_dir, $filename, $document );
+				next unless &{ $self->{filter} }( $editor, $project_dir, $filename, $document );
 			}
 		} else {
 			$filename = $document->get_title;
@@ -344,7 +343,7 @@ sub _refresh_list {
 		$item->SetText( defined( $document->project ) ? $document->project->name : '' );
 		$item->SetData( $#{ $self->{items} } );
 		my $idx = $list->InsertItem($item);
-		splice @{ $self->{items} }, $idx, 0, { page => $page };
+		splice @{ $self->{items} }, $idx, 0, { page => $editor };
 
 		$list->SetItem( $idx, 1, $filename );
 		$list->SetItem( $idx, 2, $document->is_modified ? Wx::gettext('CHANGED') : Wx::gettext('fresh') );
@@ -363,8 +362,8 @@ sub _refresh_list {
 	# auto-resize columns
 	my $flag =
 		$list->GetItemCount
-		? Wx::wxLIST_AUTOSIZE
-		: Wx::wxLIST_AUTOSIZE_USEHEADER;
+		? Wx::LIST_AUTOSIZE
+		: Wx::LIST_AUTOSIZE_USEHEADER;
 	$list->SetColumnWidth( $_, $flag ) for 0 .. 2;
 
 	# making sure the list can show all columns
@@ -387,7 +386,7 @@ sub _select_first_item {
 
 	if ( $list->GetItemCount ) {
 		my $item = $list->GetItem(0);
-		$item->SetState(Wx::wxLIST_STATE_SELECTED);
+		$item->SetState(Wx::LIST_STATE_SELECTED);
 		$list->SetItem($item);
 	} else {
 
@@ -472,7 +471,7 @@ a current list of open files/windows.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl 5 itself.

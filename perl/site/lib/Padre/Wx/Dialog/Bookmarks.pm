@@ -7,7 +7,7 @@ use Params::Util              ();
 use Padre::DB                 ();
 use Padre::Wx::FBP::Bookmarks ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Wx::FBP::Bookmarks';
 
 
@@ -52,7 +52,7 @@ sub run_set {
 
 	# Show the dialog
 	$self->refresh;
-	if ( $self->ShowModal == Wx::wxID_CANCEL ) {
+	if ( $self->ShowModal == Wx::ID_CANCEL ) {
 		return;
 	}
 
@@ -86,13 +86,13 @@ sub run_goto {
 
 	# Show the dialog
 	$self->refresh;
-	if ( $self->ShowModal == Wx::wxID_CANCEL ) {
+	if ( $self->ShowModal == Wx::ID_CANCEL ) {
 		return;
 	}
 
 	# Was a bookmark selected
 	my $id = $self->list->GetSelection;
-	if ( $id == Wx::wxNOT_FOUND ) {
+	if ( $id == Wx::NOT_FOUND ) {
 		$self->main->error( Wx::gettext('Did not select a bookmark') );
 		return;
 	}
@@ -229,7 +229,7 @@ sub refresh {
 	# When in goto mode, the OK button should only be enabled if
 	# there is something selected to goto.
 	unless ( $self->set->IsShown ) {
-		if ( $self->list->GetSelection == Wx::wxNOT_FOUND ) {
+		if ( $self->list->GetSelection == Wx::NOT_FOUND ) {
 			$self->ok->Disable;
 		} else {
 			$self->ok->Enable;
@@ -237,7 +237,7 @@ sub refresh {
 	}
 
 	# The Delete button should only be enabled if a bookmark is selected.
-	if ( $self->list->GetSelection == Wx::wxNOT_FOUND ) {
+	if ( $self->list->GetSelection == Wx::NOT_FOUND ) {
 		$self->delete->Disable;
 	} else {
 		$self->delete->Enable;
@@ -264,7 +264,7 @@ sub clean {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

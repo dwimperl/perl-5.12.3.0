@@ -7,7 +7,7 @@ use File::Spec    ();
 use File::HomeDir ();
 use Padre::Wx     ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 
 
@@ -47,11 +47,6 @@ sub get_modules {
 		push @modules, $module;
 	}
 	return \@modules;
-}
-
-sub install {
-	require CPAN;
-	CPAN::Shell->install( $_[1] );
 }
 
 sub cpan_config {
@@ -106,10 +101,10 @@ sub install_file {
 		'',                                  # Default directory
 		'',                                  # Default file
 		'CPAN Packages (*.tar.gz)|*.tar.gz', # wildcard
-		Wx::wxFD_OPEN | Wx::wxFD_FILE_MUST_EXIST
+		Wx::FD_OPEN | Wx::FD_FILE_MUST_EXIST
 	);
 	$dialog->CentreOnParent;
-	if ( $dialog->ShowModal == Wx::wxID_CANCEL ) {
+	if ( $dialog->ShowModal == Wx::ID_CANCEL ) {
 		return;
 	}
 	my $string = $dialog->GetPath;
@@ -133,7 +128,7 @@ sub install_url {
 		Wx::gettext('Install Local Distribution'),
 		'',
 	);
-	if ( $dialog->ShowModal == Wx::wxID_CANCEL ) {
+	if ( $dialog->ShowModal == Wx::ID_CANCEL ) {
 		return;
 	}
 	my $string = $dialog->GetValue;
@@ -197,7 +192,7 @@ sub install_cpanm {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

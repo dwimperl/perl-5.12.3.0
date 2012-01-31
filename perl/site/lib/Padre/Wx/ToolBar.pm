@@ -14,7 +14,7 @@ use Padre::Wx::Icon   ();
 use Padre::Wx::Editor ();
 use Padre::Constant   ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Wx::ToolBar
@@ -22,7 +22,7 @@ our @ISA     = qw{
 
 # NOTE: Something is wrong with dockable toolbars on Windows
 #       so disable them for now.
-use constant DOCKABLE => !Padre::Constant::WXWIN32;
+use constant DOCKABLE => !Padre::Constant::WIN32;
 
 
 
@@ -37,17 +37,17 @@ sub new {
 	my $config = $main->config;
 
 	# Prepare the style
-	my $style = Wx::wxTB_HORIZONTAL | Wx::wxTB_FLAT | Wx::wxTB_NODIVIDER | Wx::wxBORDER_NONE;
+	my $style = Wx::TB_HORIZONTAL | Wx::TB_FLAT | Wx::TB_NODIVIDER | Wx::BORDER_NONE;
 	if ( DOCKABLE and not $config->main_lockinterface ) {
-		$style = $style | Wx::wxTB_DOCKABLE;
+		$style = $style | Wx::TB_DOCKABLE;
 	}
 
 	# Create the parent Wx object
 	my $self = $class->SUPER::new(
 		$main,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 		$style,
 		5050,
 	);
@@ -181,7 +181,7 @@ sub refresh {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

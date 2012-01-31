@@ -12,7 +12,7 @@ use Padre::Wx::Role::View ();
 use Padre::Wx::Role::Main ();
 use Padre::Wx             ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Role::Task
 	Padre::Wx::Role::View
@@ -36,8 +36,8 @@ sub new {
 	my $self = $class->SUPER::new(
 		$panel,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 	);
 
 	# Temporary store for the function list.
@@ -49,27 +49,27 @@ sub new {
 	# Create the search control
 	$self->{search} = Wx::TextCtrl->new(
 		$self, -1, '',
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxTE_PROCESS_ENTER | Wx::wxSIMPLE_BORDER,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::TE_PROCESS_ENTER | Wx::SIMPLE_BORDER,
 	);
 
 	# Create the functions list
 	$self->{list} = Wx::ListBox->new(
 		$self,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 		[],
-		Wx::wxLB_SINGLE | Wx::wxBORDER_NONE
+		Wx::LB_SINGLE | Wx::BORDER_NONE
 	);
 
 	# Create a sizer
-	my $sizerv = Wx::BoxSizer->new(Wx::wxVERTICAL);
-	my $sizerh = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$sizerv->Add( $self->{search}, 0, Wx::wxALL | Wx::wxEXPAND );
-	$sizerv->Add( $self->{list},   1, Wx::wxALL | Wx::wxEXPAND );
-	$sizerh->Add( $sizerv,         1, Wx::wxALL | Wx::wxEXPAND );
+	my $sizerv = Wx::BoxSizer->new(Wx::VERTICAL);
+	my $sizerh = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$sizerv->Add( $self->{search}, 0, Wx::ALL | Wx::EXPAND );
+	$sizerv->Add( $self->{list},   1, Wx::ALL | Wx::EXPAND );
+	$sizerh->Add( $sizerv,         1, Wx::ALL | Wx::EXPAND );
 
 	# Fits panel layout
 	$self->SetSizerAndFit($sizerh);
@@ -80,16 +80,14 @@ sub new {
 		$self,
 		$self->{list},
 		sub {
-			my ( $this, $event ) = @_;
-			$self->on_list_item_activated($event);
-			return;
+			$self->on_list_item_activated($_[1]);
 		}
 	);
 
 	# Handle double click on list.
 	# Overwrite to avoid stealing the focus back from the editor.
 	# On Windows this appears to kill the double-click feature entirely.
-	unless (Padre::Constant::WXWIN32) {
+	unless (Padre::Constant::WIN32) {
 		Wx::Event::EVT_LEFT_DCLICK(
 			$self->{list},
 			sub {
@@ -102,53 +100,16 @@ sub new {
 	Wx::Event::EVT_KEY_UP(
 		$self->{list},
 		sub {
-			my ( $this, $event ) = @_;
-
-			my $code = $event->GetKeyCode;
-			if ( $code == Wx::WXK_RETURN ) {
-				$self->on_list_item_activated($event);
-			} elsif ( $code == Wx::WXK_ESCAPE ) {
-
-				# Escape key clears search and returns focus
-				# to the editor
-				$self->{search}->SetValue('');
-				my $editor = $self->current->editor;
-				$editor->SetFocus if $editor;
-			}
-
-			$event->Skip(1);
-			return;
-		}
+			$self->on_search_key_up($_[1]);
+		},
 	);
 
 	# Handle char events in search box
 	Wx::Event::EVT_CHAR(
 		$self->{search},
 		sub {
-			my ( $this, $event ) = @_;
-
-			my $code = $event->GetKeyCode;
-			if ( $code == Wx::WXK_DOWN || $code == Wx::WXK_UP || $code == Wx::WXK_RETURN ) {
-
-				# Up/Down and return keys focus on the functions lists
-				$self->{list}->SetFocus;
-				my $selection = $self->{list}->GetSelection;
-				if ( $selection == -1 && $self->{list}->GetCount > 0 ) {
-					$selection = 0;
-				}
-				$self->{list}->Select($selection);
-			} elsif ( $code == Wx::WXK_ESCAPE ) {
-
-				# Escape key clears search and returns focus
-				# to the editor
-				$self->{search}->SetValue('');
-				my $editor = $self->current->editor;
-				$editor->SetFocus if $editor;
-			}
-
-			$event->Skip(1);
-			return;
-		}
+			$self->on_search_char($_[1]);
+		},
 	);
 
 	# React to user search
@@ -160,8 +121,16 @@ sub new {
 		}
 	);
 
+	# Right click menu
+	Wx::Event::EVT_CONTEXT(
+		$self,
+		sub {
+			$self->on_context_menu($_[1]);
+		},
+	);
+
 	if (Padre::Feature::STYLE_GUI) {
-		$self->recolour;
+		$self->main->theme->apply( $self->{list} );
 	}
 
 	return $self;
@@ -179,7 +148,7 @@ sub view_panel {
 }
 
 sub view_label {
-	shift->gettext_label;
+	Wx::gettext('Functions');
 }
 
 sub view_close {
@@ -197,6 +166,52 @@ sub view_stop {
 #####################################################################
 # Event Handlers
 
+sub on_search_key_up {
+	my $self  = shift;
+	my $event = shift;
+	my $code  = $event->GetKeyCode;
+
+	if ( $code == Wx::K_RETURN ) {
+		$self->on_list_item_activated($event);
+		$self->{search}->SetValue('');
+
+	} elsif ( $code == Wx::K_ESCAPE ) {
+
+		# Escape key clears search and returns focus
+		# to the editor
+		$self->{search}->SetValue('');
+		$self->main->editor_focus;
+	}
+
+	$event->Skip(1);
+}
+
+sub on_search_char {
+	my $self  = shift;
+	my $event = shift;
+	my $code  = $event->GetKeyCode;
+
+	if ( $code == Wx::K_DOWN || $code == Wx::K_UP || $code == Wx::K_RETURN ) {
+
+		# Up/Down and return keys focus on the functions lists
+		$self->{list}->SetFocus;
+		my $selection = $self->{list}->GetSelection;
+		if ( $selection == -1 && $self->{list}->GetCount > 0 ) {
+			$selection = 0;
+		}
+		$self->{list}->Select($selection);
+
+	} elsif ( $code == Wx::K_ESCAPE ) {
+
+		# Escape key clears search and returns focus
+		# to the editor
+		$self->{search}->SetValue('');
+		$self->main->editor_focus;
+	}
+
+	$event->Skip(1);
+}
+
 sub on_list_item_activated {
 	my $self   = shift;
 	my $event  = shift;
@@ -211,9 +226,31 @@ sub on_list_item_activated {
 	return;
 }
 
-# Sets the focus on the search field
-sub focus_on_search {
-	$_[0]->{search}->SetFocus;
+sub on_context_menu {
+	my $self  = shift;
+	my $event = shift;
+
+	require Padre::Wx::FunctionList::Menu;
+	my $menu = Padre::Wx::FunctionList::Menu->new( $self, $event );
+
+	# Try to determine where to show the context menu
+	if ( $event->isa('Wx::MouseEvent') ) {
+		# Position is already window relative
+		$self->PopupMenu( $menu->wx, $event->GetX, $event->GetY );
+
+	} elsif ( $event->can('GetPosition') ) {
+		# Assume other event positions are screen relative
+		my $screen = $event->GetPosition;
+		my $client = $self->ScreenToClient($screen);
+		$self->PopupMenu( $menu->wx, $client->x, $client->y );
+
+	} else {
+		# Probably a wxCommandEvent
+		# TO DO Capture a better location from the mouse directly
+		$self->PopupMenu( $menu->wx, 50, 50 );
+	}
+
+	$event->Skip(0);
 }
 
 
@@ -223,71 +260,45 @@ sub focus_on_search {
 ######################################################################
 # General Methods
 
-sub gettext_label {
-	Wx::gettext('Functions');
-}
-
-# Pick up colouring from the current editor style
-sub recolour {
-	my $self   = shift;
-	my $config = $self->config;
-
-	# Load the editor style
-	require Padre::Wx::Editor;
-	my $data = Padre::Wx::Editor::data( $config->editor_style ) or return;
-
-	# Find the colours we need
-	my $foreground = $data->{padre}->{colors}->{PADRE_BLACK}->{foreground};
-	my $background = $data->{padre}->{background};
-
-	# Apply them to the widgets
-	if ( defined $foreground and defined $background ) {
-		$foreground = Padre::Wx::color($foreground);
-		$background = Padre::Wx::color($background);
-
-		$self->{list}->SetForegroundColour($foreground);
-		$self->{list}->SetBackgroundColour($background);
-
-		# $self->{search}->SetForegroundColour($foreground);
-		# $self->{search}->SetBackgroundColour($background);
-	}
-
-	return 1;
+# Sets the focus on the search field
+sub focus_on_search {
+	$_[0]->{search}->SetFocus;
 }
 
 sub refresh {
 	my $self     = shift;
 	my $current  = shift or return;
 	my $document = $current->document;
-	my $search   = $self->{search};
-	my $list     = $self->{list};
-	my $lock     = $self->main->lock('UPDATE');
+
+	# Abort any in-flight checks
+	$self->task_reset;
 
 	# Hide the widgets when no files are open
 	unless ($document) {
-		$search->Hide;
-		$list->Hide;
-		$list->Clear;
-		$self->{model}    = [];
 		$self->{document} = '';
+		$self->disable;
 		return;
 	}
-
-	# Ensure the widget is visible
-	$search->Show(1);
-	$list->Show(1);
 
 	# Clear search when it is a different document
 	my $id = Scalar::Util::refaddr($document);
 	if ( $id ne $self->{document} ) {
-		$search->ChangeValue('');
+		$self->{search}->ChangeValue('');
 		$self->{document} = $id;
 	}
 
 	# Nothing to do if there is no content
 	my $task = $document->task_functions;
-	if ( $document->is_unused or not $task ) {
-		$list->Clear;
+	unless ($task) {
+		$self->disable;
+		return;
+	}
+
+	# Ensure the widget is visible
+	$self->enable;
+
+	# Shortcut if there is nothing to search for
+	if ( $document->is_unused ) {
 		return;
 	}
 
@@ -297,6 +308,27 @@ sub refresh {
 		text  => $document->text_get,
 		order => $current->config->main_functions_order,
 	);
+
+}
+
+sub enable {
+	my $self = shift;
+	my $lock = $self->lock_update;
+	$self->{search}->Show(1);
+	$self->{list}->Show(1);
+
+	# Rerun our layout in case the size of the function list
+	# geometry changed while we were hidden.
+	$self->Layout;
+}
+
+sub disable {
+	my $self = shift;
+	my $lock = $self->lock_update;
+	$self->{search}->Hide;
+	$self->{list}->Hide;
+	$self->{list}->Clear;
+	$self->{model} = [];
 }
 
 # Set an updated method list from the task
@@ -325,7 +357,7 @@ sub render {
 
 	# Show the components and populate the function list
 	SCOPE: {
-		my $lock = $self->main->lock('UPDATE');
+		my $lock = $self->lock_update;
 		$search->Show(1);
 		$list->Show(1);
 		$list->Clear;
@@ -341,7 +373,7 @@ sub render {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

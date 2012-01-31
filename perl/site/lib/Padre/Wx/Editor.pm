@@ -1,10 +1,27 @@
 package Padre::Wx::Editor;
 
+=pod
+
+=head1 NAME
+
+Padre::Wx::Editor - Padre document editor object
+
+=head1 DESCRIPTION
+
+B<Padre::Wx::Editor> implements the Scintilla-based document editor for
+Padre. It implements the majority of functionality relating to visualisation
+and navigation of documents.
+
+=head1 METHODS
+
+=cut
+
 use 5.008;
 use strict;
 use warnings;
-use YAML::Tiny                ();
 use Time::HiRes               ();
+use Params::Util              ();
+use Wx::Scintilla        0.34 ();
 use Padre::Constant           ();
 use Padre::Config             ();
 use Padre::Feature            ();
@@ -16,32 +33,27 @@ use Padre::Wx::Role::Main     ();
 use Padre::Wx::Role::Dwell    ();
 use Padre::Logger;
 
-# Allow the use of two different versions of Scintilla
-use constant WX_SCINTILLA => Padre::Config::wx_scintilla_ready()
-	? 'Wx::ScintillaTextCtrl'
-	: 'Wx::StyledTextCtrl';
-
-our $VERSION    = '0.90';
-our $COMPATIBLE = '0.89';
+our $VERSION    = '0.94';
+our $COMPATIBLE = '0.91';
 our @ISA        = (
 	'Padre::Wx::Role::Main',
 	'Padre::Wx::Role::Dwell',
-	WX_SCINTILLA,
+	'Wx::Scintilla::TextCtrl',
 );
 
 use constant {
 
 	# Convenience colour constants
 	# NOTE: DO NOT USE "orange" string since it is actually red on win32
-	ORANGE => Wx::Colour->new( 255, 165, 0 ),
-	RED    => Wx::Colour->new("red"),
-	GREEN  => Wx::Colour->new("green"),
-	BLUE   => Wx::Colour->new("blue"),
-
-	# Indicators
-	INDICATOR_SMART_HIGHLIGHT => 0,
-	INDICATOR_WARNING         => 1,
-	INDICATOR_ERROR           => 2,
+	ORANGE     => Wx::Colour->new( 255, 165, 0 ),
+	RED        => Wx::Colour->new("red"),
+	GREEN      => Wx::Colour->new("green"),
+	BLUE       => Wx::Colour->new("blue"),
+	YELLOW     => Wx::Colour->new("yellow"),
+	DARK_GREEN => Wx::Colour->new( 0x00, 0x90, 0x00 ),
+	LIGHT_RED  => Wx::Colour->new( 0xFF, 0xA0, 0xB4 ),
+	LIGHT_BLUE => Wx::Colour->new( 0xA0, 0xC8, 0xFF ),
+	GRAY       => Wx::Colour->new('gray'),
 };
 
 # End-Of-Line modes:
@@ -52,32 +64,10 @@ use constant {
 #
 # Initialize variables after loading either Wx::Scintilla or Wx::STC
 my %WXEOL = (
-	WIN  => Wx::wxSTC_EOL_CRLF,
-	MAC  => Wx::wxSTC_EOL_CR,
-	UNIX => Wx::wxSTC_EOL_LF,
+	WIN  => Wx::Scintilla::SC_EOL_CRLF,
+	MAC  => Wx::Scintilla::SC_EOL_CR,
+	UNIX => Wx::Scintilla::SC_EOL_LF,
 );
-
-# mapping for mime-type to the style name in the share/styles/default.yml file
-# TODO this should be defined in MimeTypes.pm
-our %MIME_STYLE = (
-	'application/x-perl'     => 'perl',
-	'application/x-psgi'     => 'perl',
-	'text/x-perlxs'          => 'xs',   # should be in the plugin...
-	'text/x-patch'           => 'diff',
-	'text/x-makefile'        => 'make',
-	'text/x-yaml'            => 'yaml',
-	'text/css'               => 'css',
-	'application/x-php'      => 'perl', # temporary solution
-	'text/x-c'               => 'c',
-	'text/x-c++src'          => 'c',
-	'text/x-csharp'          => 'c',
-	'application/javascript' => 'c',
-	'text/x-java-source'     => 'c',
-);
-
-my $data;
-my $data_name;
-my $data_private;
 
 
 
@@ -98,18 +88,25 @@ sub new {
 	}
 
 	# Create the underlying Wx object
-	my $lock   = $main->lock( 'UPDATE', 'refresh_windowlist' );
-	my $self   = $class->SUPER::new($parent);
-	my $config = $self->config;
+	my $lock = $main->lock( 'UPDATE', 'refresh_windowlist' );
+	my $self = $class->SUPER::new($parent);
 
-	# This is supposed to be Wx::wxSTC_CP_UTF8
+	# Hide the editor as quickly as possible so it isn't
+	# visible during the period we are setting it up.
+	$self->Hide;
+
+	# This is supposed to be Wx::Scintilla::CP_UTF8
 	# and Wx::wxUNICODE or wxUSE_UNICODE should be on
 	$self->SetCodePage(65001);
 
 	# Code always lays out left to right
 	if ( $self->can('SetLayoutDirection') ) {
-		$self->SetLayoutDirection(Wx::wxLayout_LeftToRight);
+		$self->SetLayoutDirection(Wx::Layout_LeftToRight);
 	}
+
+	# Allow scrolling past the end of the document for those of us
+	# used to Ultraedit where you can type into a relaxing clear space.
+	$self->SetEndAtLastLine(0);
 
 	# Integration with the rest of Padre
 	$self->SetDropTarget( Padre::Wx::FileDropTarget->new($main) );
@@ -120,93 +117,212 @@ sub new {
 	$self->SetMarginRight(0);
 
 	# Clear out all the other margins
-	$self->SetMarginWidth( 0, 0 );
-	$self->SetMarginWidth( 1, 0 );
-	$self->SetMarginWidth( 2, 0 );
+	$self->SetMarginWidth( Padre::Constant::MARGIN_LINE,   0 );
+	$self->SetMarginWidth( Padre::Constant::MARGIN_MARKER, 0 );
+	$self->SetMarginWidth( Padre::Constant::MARGIN_FOLD,   0 );
 
-	# Set the colour scheme for syntax highlight markers
+	# Set the margin types (whether we show them or not)
+	$self->SetMarginType(
+		Padre::Constant::MARGIN_LINE,
+		Wx::Scintilla::SC_MARGIN_NUMBER,
+	);
+	$self->SetMarginType(
+		Padre::Constant::MARGIN_MARKER,
+		Wx::Scintilla::SC_MARGIN_SYMBOL,
+	);
+	if ( Padre::Feature::FOLDING ) {
+		$self->SetMarginType(
+			Padre::Constant::MARGIN_FOLD,
+			Wx::Scintilla::SC_MARGIN_SYMBOL,
+		);
+		$self->SetMarginMask(
+			Padre::Constant::MARGIN_FOLD,
+			Wx::Scintilla::SC_MASK_FOLDERS,
+		);
+	}
+
+	# Set up all of the default markers
 	$self->MarkerDefine(
-		Padre::Wx::MarkError(),
-		Wx::wxSTC_MARK_SMALLRECT,
+		Padre::Constant::MARKER_ERROR,
+		Wx::Scintilla::SC_MARK_SMALLRECT,
 		RED,
 		RED,
 	);
 	$self->MarkerDefine(
-		Padre::Wx::MarkWarn(),
-		Wx::wxSTC_MARK_SMALLRECT,
+		Padre::Constant::MARKER_WARN,
+		Wx::Scintilla::SC_MARK_SMALLRECT,
 		ORANGE,
 		ORANGE,
 	);
 	$self->MarkerDefine(
-		Padre::Wx::MarkLocation(),
-		Wx::wxSTC_MARK_SMALLRECT,
+		Padre::Constant::MARKER_LOCATION,
+		Wx::Scintilla::SC_MARK_SMALLRECT,
 		GREEN,
 		GREEN,
 	);
 	$self->MarkerDefine(
-		Padre::Wx::MarkBreakpoint(),
-		Wx::wxSTC_MARK_SMALLRECT,
+		Padre::Constant::MARKER_BREAKPOINT,
+		# Wx::Scintilla::MARK_SMALLRECT,
+		Wx::Scintilla::SC_MARK_DOTDOTDOT,
 		BLUE,
 		BLUE,
+	);	
+	$self->MarkerDefine(
+		Padre::Constant::MARKER_NOT_BREAKABLE,
+		Wx::Scintilla::SC_MARK_DOTDOTDOT,
+		GRAY,
+		GRAY,
+	);
+	$self->MarkerDefine(
+		Padre::Constant::MARKER_ADDED,
+		Wx::Scintilla::SC_MARK_PLUS,
+		DARK_GREEN,
+		DARK_GREEN,
+	);
+	$self->MarkerDefine(
+		Padre::Constant::MARKER_CHANGED,
+		Wx::Scintilla::SC_MARK_ARROW,
+		LIGHT_BLUE,
+		LIGHT_BLUE,
+	);
+	$self->MarkerDefine(
+		Padre::Constant::MARKER_DELETED,
+		Wx::Scintilla::SC_MARK_MINUS,
+		LIGHT_RED,
+		LIGHT_RED,
 	);
 
-	# No more unsafe CTRL-L for you :)
 	# CTRL-L or line cut should only work when there is no empty line
 	# This prevents the accidental destruction of the clipboard
-	$self->CmdKeyClear( ord('L'), Wx::wxSTC_SCMOD_CTRL );
+	$self->CmdKeyClear( ord('L'), Wx::Scintilla::SCMOD_CTRL );
 
 	# Disable CTRL keypad -/+. These seem to emit wrong scan codes
 	# on some laptop keyboards. (e.g. CTRL-Caps lock is the same as CTRL -)
 	# Please see bug #790
-	$self->CmdKeyClear( Wx::wxSTC_KEY_SUBTRACT, Wx::wxSTC_SCMOD_CTRL );
-	$self->CmdKeyClear( Wx::wxSTC_KEY_ADD,      Wx::wxSTC_SCMOD_CTRL );
+	$self->CmdKeyClear( Wx::Scintilla::SCK_SUBTRACT, Wx::Scintilla::SCMOD_CTRL );
+	$self->CmdKeyClear( Wx::Scintilla::SCK_ADD,      Wx::Scintilla::SCMOD_CTRL );
 
-	# Apply settings based on configuration
-	# TO DO: Make this suck less (because it really does suck a lot)
-	$self->apply_config($config);
+	# Setup the editor indicators which we will use in smart, warning and error highlighting
+	# Indicator #0: Green round box indicator for smart highlighting
+	$self->IndicatorSetStyle( Padre::Constant::INDICATOR_SMART_HIGHLIGHT, Wx::Scintilla::INDIC_ROUNDBOX );
 
-	# Load the style data in the legacy evil way
-	$data = data( $config->editor_style );
+	# Indicator #1, Orange squiggle for warning highlighting
+	$self->IndicatorSetForeground( Padre::Constant::INDICATOR_WARNING, ORANGE );
+	$self->IndicatorSetStyle( Padre::Constant::INDICATOR_WARNING, Wx::Scintilla::INDIC_SQUIGGLE );
 
-	# Generate basic event bindings
-	Wx::Event::EVT_SET_FOCUS( $self, \&on_set_focus );
-	Wx::Event::EVT_KILL_FOCUS( $self, \&on_kill_focus );
-	Wx::Event::EVT_KEY_DOWN( $self, \&on_key_down );
-	Wx::Event::EVT_KEY_UP( $self, \&on_key_up );
-	Wx::Event::EVT_CHAR( $self, \&on_char );
-	Wx::Event::EVT_MOTION( $self, \&on_mouse_moving );
-	Wx::Event::EVT_MOUSEWHEEL( $self, \&on_mousewheel );
-	Wx::Event::EVT_LEFT_DOWN( $self, \&on_left_down );
-	Wx::Event::EVT_LEFT_UP( $self, \&on_left_up );
-	Wx::Event::EVT_STC_DOUBLECLICK( $self, -1, \&on_left_double );
-	Wx::Event::EVT_MIDDLE_UP( $self, \&on_middle_up );
-	Wx::Event::EVT_RIGHT_DOWN( $self, \&on_right_down );
+	# Indicator #2, Red squiggle for error highlighting
+	$self->IndicatorSetForeground( Padre::Constant::INDICATOR_ERROR, RED );
+	$self->IndicatorSetStyle( Padre::Constant::INDICATOR_ERROR, Wx::Scintilla::INDIC_SQUIGGLE );
+
+	# Indicator #3, underline for mouse-clickable tokens
+	$self->IndicatorSetForeground( Padre::Constant::INDICATOR_UNDERLINE, BLUE );
+	$self->IndicatorSetStyle( Padre::Constant::INDICATOR_UNDERLINE, Wx::Scintilla::INDIC_PLAIN );
+
+	# Basic event bindings
+	Wx::Event::EVT_SET_FOCUS(
+		$self,
+		sub {
+			shift->on_set_focus(@_);
+		},
+	);
+	Wx::Event::EVT_KILL_FOCUS(
+		$self,
+		sub {
+			shift->on_kill_focus(@_);
+		},
+	);
+	Wx::Event::EVT_KEY_UP(
+		$self,
+		sub {
+			shift->on_key_up(@_);
+		},
+	);
+	Wx::Event::EVT_CHAR(
+		$self,
+		sub {
+			shift->on_char(@_);
+		},
+	);
+	Wx::Event::EVT_MOTION(
+		$self,
+		sub {
+			shift->on_mouse_moving(@_);
+		},
+	);
+	Wx::Event::EVT_MOUSEWHEEL(
+		$self,
+		sub {
+			shift->on_mousewheel(@_);
+		},
+	);
+	Wx::Event::EVT_LEFT_DOWN(
+		$self,
+		sub {
+			shift->on_left_down(@_);
+		},
+	);
+	Wx::Event::EVT_LEFT_UP(
+		$self,
+		sub {
+			shift->on_left_up(@_);
+		},
+	);
+	Wx::Event::EVT_MIDDLE_UP(
+		$self,
+		sub {
+			shift->on_middle_up(@_);
+		},
+	);
+	Wx::Event::EVT_CONTEXT(
+		$self,
+		sub {
+			shift->on_context_menu(@_);
+		},
+	);
+
+	# Scintilla specific event bindings
+	Wx::Event::EVT_STC_DOUBLECLICK(
+		$self, -1,
+		sub {
+			shift->on_left_double(@_);
+		},
+	);
 
 	# Capture change events that result in an actual change to the text
 	# of the document, so we can refire content-dependent editor tools.
 	$self->SetModEventMask(
-		Wx::wxSTC_PERFORMED_USER | Wx::wxSTC_PERFORMED_UNDO | Wx::wxSTC_PERFORMED_REDO | Wx::wxSTC_MOD_INSERTTEXT
-			| Wx::wxSTC_MOD_DELETETEXT );
-	Wx::Event::EVT_STC_CHANGE( $self, $self, \&on_change );
+		Wx::Scintilla::SC_PERFORMED_USER |
+		Wx::Scintilla::SC_PERFORMED_UNDO |
+		Wx::Scintilla::SC_PERFORMED_REDO |
+		Wx::Scintilla::SC_MOD_INSERTTEXT |
+		Wx::Scintilla::SC_MOD_DELETETEXT
+	);
+	Wx::Event::EVT_STC_CHANGE(
+		$self,
+		$self,
+		sub {
+			shift->on_change(@_);
+		},
+	);
 
 	# Smart highlighting:
 	# Selecting a word or small block of text causes all other occurrences to be highlighted
 	# with a round box around each of them
 	$self->{styles} = [];
 
-	# Setup the editor indicators which we will use in smart, warning and error highlighting
-	# Indicator #0: Green round box indicator for smart highlighting
-	$self->IndicatorSetStyle( INDICATOR_SMART_HIGHLIGHT, Wx::wxSTC_INDIC_ROUNDBOX );
-
-	# Indicator #1, Orange squiggle for warning highlighting
-	$self->IndicatorSetForeground( INDICATOR_WARNING, ORANGE );
-	$self->IndicatorSetStyle( INDICATOR_WARNING, Wx::wxSTC_INDIC_SQUIGGLE );
-
-	# Indicator #2, Red squiggle for error highlighting
-	$self->IndicatorSetForeground( INDICATOR_ERROR, RED );
-	$self->IndicatorSetStyle( INDICATOR_ERROR, Wx::wxSTC_INDIC_SQUIGGLE );
+	# Apply settings based on configuration
+	# TO DO: Make this suck less (because it really does suck a lot)
+	$self->setup_config;
 
 	return $self;
+}
+
+sub document {
+	$_[0]->{Document};
+}
+
+sub notebook {
+	Params::Util::_INSTANCE($_[0]->GetParent, 'Padre::Wx::Notebook');
 }
 
 
@@ -221,25 +337,28 @@ sub on_set_focus {
 	TRACE() if DEBUG;
 	my $self     = shift;
 	my $event    = shift;
-	my $main     = $self->main;
 	my $document = $self->{Document} or return;
 	TRACE( "Focus received file:" . $document->get_title ) if DEBUG;
+
+	# Update the line number width
+	$self->refresh_line_numbers;
 
 	# NOTE: The editor focus event fires a LOT, even for trivial things
 	# like changing focus to another application and immediately back again,
 	# or switching between tools in Padre.
-	# Don't do any refreshing here, it is an excessive waste of resources.
-	# Instead, put them in the events that ACTUALLY change application state.
+	# Try to avoid refreshing here, it is an excessive waste of resources.
+	# Instead, put them in the events that ACTUALLY change application
+	# state.
 
 	# TO DO
-	# This is called even if the mouse is moved away from padre and back again
-	# we should restrict some of the updates to cases when we switch from one file to
-	# another
+	# This is called even if the mouse is moved away from padre and back
+	# again we should restrict some of the updates to cases when we switch
+	# from one file to another.
 	if ( $self->needs_manual_colorize ) {
 		TRACE("needs_manual_colorize") if DEBUG;
-		my $lock  = $main->lock('UPDATE');
+		my $lock  = $self->lock_update;
 		my $lexer = $self->GetLexer;
-		if ( $lexer == Wx::wxSTC_LEX_CONTAINER ) {
+		if ( $lexer == Wx::Scintilla::SCLEX_CONTAINER ) {
 			$document->colorize;
 		} else {
 			$self->remove_color;
@@ -264,16 +383,6 @@ sub on_kill_focus {
 	$event->Skip(1);
 }
 
-# Called when a key is pressed
-sub on_key_down {
-	my $self  = shift;
-	my $event = shift;
-	$self->smart_highlight_hide;
-
-	# Keep processing
-	$event->Skip(1);
-}
-
 # Called when a key is released
 sub on_key_up {
 	my $self  = shift;
@@ -285,11 +394,11 @@ sub on_key_up {
 		if ( $line !~ /^\s*$/ ) {
 
 			# Only cut on non-blank lines
-			$self->CmdKeyExecute(Wx::wxSTC_CMD_LINECUT);
+			$self->LineCut;
 		} else {
 
 			# Otherwise delete the line
-			$self->CmdKeyExecute(Wx::wxSTC_CMD_LINEDELETE);
+			$self->LineDelete;
 		}
 		$event->Skip(0); # done processing this nothing more to do
 		return;
@@ -313,8 +422,13 @@ sub on_key_up {
 
 # Called when a character is added or changed in the editor
 sub on_char {
-	my $self     = shift;
-	my $event    = shift;
+	my $self  = shift;
+	my $event = shift;
+
+	# Hide the smart highlight when a character is added or changed
+	# in the editor
+	$self->smart_highlight_hide;
+
 	my $document = $self->{Document} or return;
 	if ( $document->can('event_on_char') ) {
 		$document->event_on_char( $self, $event );
@@ -327,21 +441,32 @@ sub on_char {
 # Called on any change to text.
 # NOTE: This gets called twice for every change, it may be a bug.
 sub on_change {
-	$_[0]->dwell_start( 'on_change_dwell', $_[0]->config->editor_dwell );
+	my $self = shift;
+
+	# Tickle the dwell for all the dependant gui refreshing
+	$self->dwell_start( 'on_change_dwell', $self->config->editor_dwell );
+
+	# If the document changes, memory of search matches are reset
+	delete $self->{match};
+
+	return;
 }
 
 # Fires half a second after the user stops typing or otherwise stops changing
 sub on_change_dwell {
-	my $self   = shift;
-	my $main   = $self->main;
-	my $editor = $main->current->editor;
+	my $self    = shift;
+	my $main    = $self->main;
+	my $current = $main->current;
+	my $editor  = $current->editor;
 
 	# Only trigger tool refresh actions if we are the active document
 	if ( $editor and $self->GetId == $editor->GetId ) {
-		my $lock = $main->lock('UPDATE');
-		$main->refresh_functions;
-		$main->refresh_outline;
-		$main->refresh_syntaxcheck;
+		$self->refresh_line_numbers;
+		$main->refresh_functions($current);
+		$main->refresh_outline($current);
+		$main->refresh_syntax($current);
+		$main->refresh_todo($current);
+		$main->refresh_diff($current);
 	}
 
 	return;
@@ -403,7 +528,7 @@ sub on_left_up {
 	my $config = $self->config;
 	my $text   = $self->GetSelectedText;
 
-	if ( Padre::Constant::WXGTK and defined $text and $text ne '' ) {
+	if ( Wx::GTK and defined $text and $text ne '' ) {
 
 		# Only on X11 based platforms
 		if ( $config->mid_button_paste ) {
@@ -440,7 +565,7 @@ sub on_middle_up {
 	# It seems that another event is doing something but not within this module.
 	# Please look at ticket #390 for details!
 	if ( $config->mid_button_paste ) {
-		Wx::wxTheClipboard->UsePrimarySelection(1);
+		Wx::TheClipboard->UsePrimarySelection(1);
 	}
 
 	if ( Padre::Constant::WIN32 or not $config->mid_button_paste ) {
@@ -453,25 +578,36 @@ sub on_middle_up {
 	}
 
 	if ( $config->mid_button_paste ) {
-		Wx::wxTheClipboard->UsePrimarySelection(0);
+		Wx::TheClipboard->UsePrimarySelection(0);
 		$event->Skip(1);
 	} else {
 		$event->Skip(0);
 	}
 }
 
-sub on_right_down {
+sub on_context_menu {
 	my $self  = shift;
 	my $event = shift;
 	my $main  = $self->main;
 
-	require Padre::Wx::Menu::RightClick;
-	my $menu = Padre::Wx::Menu::RightClick->new( $main, $self, $event );
+	require Padre::Wx::Editor::Menu;
+	my $menu = Padre::Wx::Editor::Menu->new( $self, $event );
 
+	# Try to determine where to show the context menu
 	if ( $event->isa('Wx::MouseEvent') ) {
+		# Position is already window relative
 		$self->PopupMenu( $menu->wx, $event->GetX, $event->GetY );
-	} else { # Wx::CommandEvent
-		$self->PopupMenu( $menu->wx, 50, 50 ); # TO DO better location
+
+	} elsif ( $event->can('GetPosition') ) {
+		# Assume other event positions are screen relative
+		my $screen = $event->GetPosition;
+		my $client = $self->ScreenToClient($screen);
+		$self->PopupMenu( $menu->wx, $client->x, $client->y );
+
+	} else {
+		# Probably a wxCommandEvent
+		# TO DO Capture a better location from the mouse directly
+		$self->PopupMenu( $menu->wx, 1, 1 );
 	}
 }
 
@@ -482,60 +618,19 @@ sub on_right_down {
 ######################################################################
 # Setup and Preferences Methods
 
-# Allow projects to override editor preferences
-sub config {
-	my $self    = shift;
-	my $project = $self->current->project;
-	return $project->config if $project;
-	return $self->SUPER::config;
+# An alternative to GetWrapMode that returns the mode in text form,
+# primarily so that the view menu does not need to load Wx::Scintilla
+# for access to the constants
+sub get_wrap_mode {
+	my $self = shift;
+	my $mode = $self->GetWrapMode;
+	return 'WORD' if $mode == Wx::Scintilla::SC_WRAP_WORD;
+	return 'CHAR' if $mode == Wx::Scintilla::SC_WRAP_CHAR;
+	return 'NONE';
 }
 
-# Apply global configuration settings to the editor
-sub apply_config {
-	my $self   = shift;
-	my $config = shift;
-
-	# Apply various settings that largely map directly
-	$self->SetCaretPeriod( $config->editor_cursor_blink );
-	$self->SetCaretLineVisible( $config->editor_currentline );
-	$self->SetViewEOL( $config->editor_eol );
-	$self->SetViewWhiteSpace( $config->editor_whitespace );
-	$self->show_line_numbers( $config->editor_linenumbers );
-	$self->SetIndentationGuides( $config->editor_indentationguides );
-
-	# Enable or disable word wrapping
-	if ( $config->editor_wordwrap ) {
-		$self->SetWrapMode(Wx::wxSTC_WRAP_WORD);
-	} else {
-		$self->SetWrapMode(Wx::wxSTC_WRAP_NONE);
-	}
-
-	# Enable or disable the right hand margin guideline
-	if ( $config->editor_right_margin_enable ) {
-		$self->SetEdgeColumn( $config->editor_right_margin_column );
-		$self->SetEdgeMode(Wx::wxSTC_EDGE_LINE);
-	} else {
-		$self->SetEdgeMode(Wx::wxSTC_EDGE_NONE);
-	}
-
-	# Set the font
-	my $font = Wx::Font->new( 10, Wx::wxTELETYPE, Wx::wxNORMAL, Wx::wxNORMAL );
-	if ( defined $config->editor_font and length $config->editor_font > 0 ) {
-		$font->SetNativeFontInfoUserDesc( $config->editor_font );
-	}
-	$self->SetFont($font);
-	$self->StyleSetFont( Wx::wxSTC_STYLE_DEFAULT, $font );
-
-	# Enable or disable folding (if folding is turned on)
-	if (Padre::Feature::FOLDING) {
-		$self->show_folding( $config->editor_folding );
-	}
-
-	return;
-}
-
-# Applys the document content to the editor before plugins get notified
-sub configure_editor {
+# Fill the editor with the document
+sub set_document {
 	my $self     = shift;
 	my $document = shift or return;
 	my $eol      = $WXEOL{ $document->newline_type };
@@ -550,18 +645,116 @@ sub configure_editor {
 	return;
 }
 
-sub set_preferences {
+sub SetWordChars {
 	my $self = shift;
-	my $config = shift || $self->config;
+	my $document = shift;
+	if ( $document ) {
+		$self->SUPER::SetWordChars( $document->scintilla_word_chars );
+	} else {
+		$self->SUPER::SetWordChars('');
+	}
+	return;
+}
 
-	# (Re)apply general configuration settings
-	$self->apply_config($config);
+sub SetLexer {
+	my $self  = shift;
+	my $lexer = shift;
+	if ( Params::Util::_INSTANCE($lexer, 'Padre::Document') ) {
+		$lexer = $lexer->mimetype;
+	}
+	unless ( Params::Util::_NUMBER($lexer) ) {
+		require Padre::Wx::Scintilla;
+		$lexer = Padre::Wx::Scintilla->lexer($lexer);
+	}
+	if ( Params::Util::_NUMBER($lexer) ) {
+		return $self->SUPER::SetLexer($lexer);
+	}
+	return;
+}
 
-	# Apply type-specific settings
-	$self->padre_setup($config);
+sub SetKeyWords {
+	my $self = shift;
 
-	if ( $self->{Document} ) {
-		$self->{Document}->set_indentation_style;
+	# Handle the pass through case
+	return shift->SUPER::SetKeyWords(@_) if @_ == 3;
+
+	# Handle the higher order cases
+	my $keywords = shift;
+	if ( Params::Util::_INSTANCE($keywords, 'Padre::Document') ) {
+		$keywords = $keywords->mimetype;
+	}
+	unless ( Params::Util::_ARRAY0($keywords) ) {
+		require Padre::Wx::Scintilla;
+		$keywords = Padre::Wx::Scintilla->keywords($keywords);
+	}
+	if ( Params::Util::_ARRAY($keywords) ) {
+		foreach my $i ( 0 .. $#$keywords ) {
+			$self->SUPER::SetKeyWords( $i, $keywords->[$i] );
+		}
+	}
+	return;
+}
+
+sub StyleAllForeground {
+	my $self   = shift;
+	my $colour = shift;
+	foreach my $i ( 0 .. 31 ) {
+		$self->StyleSetBackground( $i, $colour );
+	}
+	return;
+}
+
+sub StyleAllBackground {
+	my $self   = shift;
+	my $colour = shift;
+	foreach my $i ( 0 .. 31 ) {
+		$self->StyleSetBackground( $i, $colour );
+	}
+	return;
+}
+
+# Allow projects to override editor preferences
+sub config {
+	my $self    = shift;
+	my $project = $self->current->project;
+	return $project->config if $project;
+	return $self->SUPER::config(@_);
+}
+
+# Apply global configuration settings to the editor
+sub setup_config {
+	my $self   = shift;
+	my $config = $self->config;
+
+	# Apply various settings that largely map directly
+	$self->SetCaretPeriod( $config->editor_cursor_blink );
+	$self->SetCaretLineVisible( $config->editor_currentline );
+	$self->SetViewEOL( $config->editor_eol );
+	$self->SetViewWhiteSpace( $config->editor_whitespace );
+	$self->show_line_numbers( $config->editor_linenumbers );
+	$self->SetIndentationGuides( $config->editor_indentationguides );
+
+	# Enable or disable word wrapping
+	if ( $config->editor_wordwrap ) {
+		$self->SetWrapMode(Wx::Scintilla::SC_WRAP_WORD);
+	} else {
+		$self->SetWrapMode(Wx::Scintilla::SC_WRAP_NONE);
+	}
+
+	# Enable or disable the right hand margin guideline
+	if ( $config->editor_right_margin_enable ) {
+		$self->SetEdgeColumn( $config->editor_right_margin_column );
+		$self->SetEdgeMode(Wx::Scintilla::EDGE_LINE);
+	} else {
+		$self->SetEdgeMode(Wx::Scintilla::EDGE_NONE);
+	}
+
+	# Enable the symbol margin if anything needs it
+	if ( Padre::Feature::DIFF_DOCUMENT or $config->main_syntax ) {
+		if ( $self->GetMarginWidth(1) == 0 ) {
+			# Set margin 1 as a 16 pixel symbol margin
+			$self->SetMarginWidth( Padre::Constant::MARGIN_MARKER, 16 );
+		}
 	}
 
 	return;
@@ -569,173 +762,128 @@ sub set_preferences {
 
 # Most of this should be read from some external files
 # but for now we use this if statement
-sub padre_setup {
+sub setup_document {
 	my $self     = shift;
-	my $config   = shift || $self->config;
+	my $config   = $self->config;
 	my $document = $self->{Document};
-	my $filename = $document ? $document->filename : '';
-	my $mimetype = $document ? $document->mimetype : 'text/plain';
+
+	# Reset word characters, most languages don't change it
+	$self->SetWordChars('');
 
 	# Configure lexing for the editor based on the document type
 	if ($document) {
-		$self->SetLexer( $document->lexer );
-		$self->SetWordChars( $document->stc_word_chars );
+		$self->SetLexer($document);
+		$self->SetStyleBits( $self->GetStyleBitsNeeded );
+		$self->SetWordChars($document);
+		$self->SetKeyWords($document);
 
-		# Set all the lexer keywords lists that the document provides
-		my @lexer_keywords = @{ $document->lexer_keywords };
-		for my $i ( 0 .. $#lexer_keywords ) {
-			$self->SetKeyWords( $i, join( ' ', @{ $lexer_keywords[$i] } ) );
-		}
-	} else {
-		$self->SetWordChars('');
-	}
+		# Setup indenting
+		my $indent = $document->get_indentation_style;
+		$self->SetTabWidth( $indent->{tabwidth} );  # Tab char width
+		$self->SetIndent( $indent->{indentwidth} ); # Indent columns
+		$self->SetUseTabs( $indent->{use_tabs} );
 
-	# Apply the blanket plain styling to everything first
-	$self->padre_setup_plain($config);
-
-	# Setup the style for the specific mimetype
-	if ( $MIME_STYLE{$mimetype} ) {
-		$self->padre_setup_style( $MIME_STYLE{$mimetype}, $config );
-		return;
-	}
-
-	# Setup some default colouring.
-	# For the time being it is the same as for Perl.
-	unless ( $mimetype ne 'text/plain' ) {
-		$self->padre_setup_style( 'padre', $config );
-		return;
-	}
-
-	# For plain text try to guess based on the filename
-	if ( $filename and $filename =~ /\.([^.]+)$/ ) {
-		my $ext = lc $1;
-
-		# Resetup if file extension is .conf
-		if ( $ext eq 'conf' ) {
-			$self->padre_setup_style( 'conf', $config );
-			return;
+		# Enable or disable folding (if folding is turned on)
+		# Please enable it when the lexer is changed because it is
+		# the one that creates the code folding for that particular
+		# document
+		if ( Padre::Feature::FOLDING ) {
+			$self->show_folding( $config->editor_folding );
 		}
 	}
+
+	# Apply the current style to the editor
+	$self->main->theme->apply($self);
+
+	# When we apply the style, refresh the line number margin in case
+	# the changed style results in a different size font.
+	$self->refresh_line_numbers;
 
 	return;
 }
 
-sub padre_setup_plain {
-	my $self   = shift;
-	my $config = shift || $self->config;
-	my $plain  = $data->{plain};
 
-	# Flush the style colouring and apply from scratch
-	$self->StyleClearAll;
 
-	if ( defined $plain->{current_line_foreground} ) {
-		$self->SetCaretForeground( Padre::Wx::color( $plain->{current_line_foreground} ) );
-	}
-	if ( defined $plain->{currentline} ) {
-		if ( defined $config->editor_currentline_color ) {
-			if ( $plain->{currentline} ne $config->editor_currentline_color ) {
-				$plain->{currentline} = $config->editor_currentline_color;
-			}
-		}
-		$self->SetCaretLineBackground( Padre::Wx::color( $plain->{currentline} ) );
-	} elsif ( defined $config->editor_currentline_color ) {
-		$self->SetCaretLineBackground( Padre::Wx::color( $config->editor_currentline_color ) );
-	}
 
-	my $foregrounds = $plain->{foregrounds};
-	foreach my $k ( keys %$foregrounds ) {
-		$self->StyleSetForeground( $k => Padre::Wx::color( $plain->{foregrounds}->{$k} ) );
-	}
 
-	$self->setup_style_from_config( 'plain', $config );
+######################################################################
+# Selection and Introspection
 
-	return;
+# Return the character at a given position as a perl string
+sub GetTextAt {
+	chr $_[0]->GetCharAt($_[1]);
 }
 
-sub padre_setup_style {
-	my $self   = shift;
-	my $name   = shift;
-	my $config = shift || $self->config;
-
-	foreach my $i ( 0 .. Wx::wxSTC_STYLE_DEFAULT ) {
-		$self->StyleSetBackground( $i => Padre::Wx::color( $data->{$name}->{background} ) );
-	}
-
-	$self->setup_style_from_config( $name, $config );
-
-	# if mimetype is known, then it might be Perl with in-line POD
-	if ( Padre::Feature::FOLDING and $config->editor_folding ) {
-		if ( $config->editor_fold_pod ) {
-			$self->fold_pod;
-		}
-	}
-
-	return;
+sub GetSelectionLength {
+	$_[0]->GetSelectionStart - $_[0]->GetSelectionEnd;
 }
 
-sub setup_style_from_config {
+sub GetFirstDocumentLine {
+	$_[0]->DocLineFromVisible( $_[0]->GetFirstVisibleLine );
+}
+
+sub get_selection_lines {
+	return (
+		$_[0]->get_selection_lines_start,
+		$_[0]->get_selection_lines_end,
+	);
+}
+
+sub get_selection_lines_start {
+	$_[0]->LineFromPosition( $_[0]->GetSelectionStart );
+}
+
+sub get_selection_lines_end {
+	$_[0]->LineFromPosition( $_[0]->GetSelectionEnd );
+}
+
+sub get_selection_block {
 	my $self   = shift;
-	my $name   = shift;
-	my $config = shift || $self->config; # Unused but leave it here for now
-	my $style  = $data->{$name};
-	my $colors = $style->{colors};
+	my $startp = $self->GetSelectionStart;
+	my $startl = $self->LineFromPosition($startp);
+	my $endp   = $self->GetSelectionEnd;
+	my $endl   = $self->LineFromPosition($endp);
 
-	# The selection background (if applicable)
-	# (The Scintilla official selection background colour is cc0000)
-	if ( $style->{selection_background} ) {
-		$self->SetSelBackground(
-			1 => Padre::Wx::color( $style->{selection_background} ),
-		);
-	}
-	if ( $style->{selection_foreground} ) {
-		$self->SetSelForeground(
-			1 => Padre::Wx::color( $style->{selection_foreground} ),
-		);
+	# Do nothing unless the selection spans lines
+	return ( $startl, $endl ) if $startl == $endl;
+
+	# Trim off the bottom lines while no content is selected
+	while ( $endp == $self->PositionFromLine($endl) ) {
+		$endp = $self->GetLineEndPosition(--$endl);
+		return ( $startl, $endl ) if $startl == $endl;
 	}
 
-	# Set the styles
-	foreach my $k ( keys %$colors ) {
-		my $v;
-
-		# allow for plain numbers
-		if ( $k =~ /^\d+$/ ) {
-			$v = $k;
-		}
-
-		# but normally, we have Wx:: or PADRE_ constants
-		else {
-			my $f = 'Wx::' . $k;
-			if ( $k =~ /^PADRE_/ ) {
-				$f = 'Padre::Constant::' . $k;
-			}
-			no strict "refs";
-			$v = eval { $f->() };
-			if ($@) {
-				warn "invalid key '$k'\n";
-				next;
-			}
-		}
-
-		my $color = $data->{$name}->{colors}->{$k};
-		if ( exists $color->{foreground} ) {
-			$self->StyleSetForeground( $v => Padre::Wx::color( $color->{foreground} ) );
-		}
-		if ( exists $color->{background} ) {
-			$self->StyleSetBackground( $v => Padre::Wx::color( $color->{background} ) );
-		}
-		if ( exists $color->{bold} ) {
-			$self->StyleSetBold( $v, $color->{bold} );
-		}
-		if ( exists $color->{italics} ) {
-			$self->StyleSetItalic( $v, $color->{italic} );
-		}
-		if ( exists $color->{eolfilled} ) {
-			$self->StyleSetEOLFilled( $v, $color->{eolfilled} );
-		}
-		if ( exists $color->{underlined} ) {
-			$self->StyleSetUnderline( $v, $color->{underline} );
-		}
+	# Trim off the top lines while no content is selected
+	while ( $startp == $self->GetLineEndPosition($startl) ) {
+		$startp = $self->PositionFromLine(++$startl);
+		return ( $startl, $endl ) if $startl == $endl;
 	}
+
+	# The final result is the range of lines containing content
+	# within the original selection.
+	return ( $startl, $endl );
+}
+
+# Indicate a selection based on a search match and remember where it was
+# so we know whether to continue or start a new search next time they hit F3
+sub match {
+	my $self   = shift;
+	my $search = shift;
+	my $from   = shift;
+	my $to     = shift;
+
+	# Set the selection
+	$self->goto_selection_centerize( $from, $to );
+
+	# Save the match details
+	$self->{matched} = [ $search, $from, $to ];
+
+	return 1;
+}
+
+# Fetch the search result the current selection is a match for, if any
+sub matched {
+	$_[0]->{matched};
 }
 
 
@@ -745,50 +893,18 @@ sub setup_style_from_config {
 ######################################################################
 # General Methods
 
-# convenience methods
-# return the character at a given position as a perl string
-sub get_character_at {
-	return chr $_[0]->GetCharAt( $_[1] );
+# Take a temporary readonly lock on the object
+sub lock_readonly {
+	require Padre::Wx::Editor::Lock;
+	Padre::Wx::Editor::Lock->new(shift);
 }
 
-# private is undefined if we don't know and need to search for it
-# private is 0 if this is a standard style
-# private is 1 if this is a private style
-sub data {
-	my $name    = shift;
-	my $private = shift;
-
-	return $data if not defined $name;
-	return $data if defined $data and $name eq $data_name;
-
-	my $private_file = File::Spec->catfile( Padre::Constant::CONFIG_DIR, 'styles', "$name.yml" );
-	my $standard_file = Padre::Util::sharefile( 'styles', "$name.yml" );
-
-	if ( not defined $private ) {
-		if ( -e $private_file ) {
-			$private = 1;
-		} elsif ( -e $standard_file ) {
-			$private = 0;
-		} else {
-			warn "style $name could not be found in either places: '$standard_file' and '$private_file'\n";
-			return $data;
-		}
-	}
-
-	my $file =
-		  $private
-		? $private_file
-		: $standard_file;
-	my $tdata;
-	eval { $tdata = YAML::Tiny::LoadFile($file); };
-	if ($@) {
-		warn $@;
-	} else {
-		$data_name    = $name;
-		$data_private = $private;
-		$data         = $tdata;
-	}
-	return $data;
+# Recalculate the line number margins whenever we change the zoom level
+sub SetZoom {
+	my $self = shift;
+	my @rv   = $self->SUPER::SetZoom(@_);
+	$self->refresh_line_numbers;
+	return @rv;
 }
 
 # Error Message
@@ -798,7 +914,7 @@ sub error {
 	Wx::MessageBox(
 		$text,
 		Wx::gettext("Error"),
-		Wx::wxOK,
+		Wx::OK,
 		$self->main
 	);
 }
@@ -847,10 +963,10 @@ sub get_brace_info {
 
 	# try the after position first (default one for BraceMatch)
 	my $is_after = 1;
-	my $brace    = $self->get_character_at($pos);
+	my $brace    = $self->GetTextAt($pos);
 	my $is_brace = $self->get_brace_type($brace);
 	if ( !$is_brace && $pos > 0 ) { # try the before position
-		$brace    = $self->get_character_at( --$pos );
+		$brace    = $self->GetTextAt( --$pos );
 		$is_brace = $self->get_brace_type($brace) or return undef;
 		$is_after = 0;
 	}
@@ -891,7 +1007,7 @@ sub highlight_braces {
 	my $expression_highlighting = $self->config->editor_brace_expression_highlighting;
 
 	# remove current highlighting if any
-	$self->BraceHighlight( Wx::wxSTC_INVALID_POSITION, Wx::wxSTC_INVALID_POSITION );
+	$self->BraceHighlight( Wx::Scintilla::INVALID_POSITION, Wx::Scintilla::INVALID_POSITION );
 	if ($previous_expr_hiliting_style) {
 		$self->apply_style($previous_expr_hiliting_style);
 		$previous_expr_hiliting_style = undef;
@@ -903,7 +1019,7 @@ sub highlight_braces {
 
 	my $actual_pos2 = $self->BraceMatch($actual_pos1);
 
-	return if $actual_pos2 == Wx::wxSTC_INVALID_POSITION; #Wx::wxSTC_INVALID_POSITION  #????
+	return if $actual_pos2 == Wx::Scintilla::INVALID_POSITION; #Wx::Scintilla::INVALID_POSITION  #????
 
 	$self->BraceHighlight( $actual_pos1, $actual_pos2 );
 
@@ -911,7 +1027,7 @@ sub highlight_braces {
 		my $pos2 = $self->find_matching_brace($pos1) or return;
 		my %style = (
 			start => $pos1 < $pos2 ? $pos1 : $pos2,
-			len => abs( $pos1 - $pos2 ), style => Wx::wxSTC_STYLE_DEFAULT
+			len => abs( $pos1 - $pos2 ), style => Wx::Scintilla::STYLE_DEFAULT
 		);
 		$previous_expr_hiliting_style = $self->apply_style( \%style );
 	}
@@ -958,7 +1074,7 @@ sub find_matching_brace {
 	my ( $actual_pos1, $brace, $is_after, $is_opening ) = @$info1;
 
 	my $actual_pos2 = $self->BraceMatch($actual_pos1);
-	return if $actual_pos2 == Wx::wxSTC_INVALID_POSITION;
+	return if $actual_pos2 == Wx::Scintilla::INVALID_POSITION;
 	$actual_pos2++ if $is_after; # ensure is stays inside if origin is inside, same four outside
 	return $actual_pos2;
 }
@@ -996,28 +1112,64 @@ sub select_to_matching_brace {
 	my $pos2 = $self->find_matching_brace($pos) or return;
 	my $start = ( $pos < $pos2 ) ? $self->GetSelectionStart : $self->GetSelectionEnd;
 	$self->SetSelection( $start, $pos2 );
-
 }
 
-# currently if there are 9 lines we set the margin to 1 width and then
-# if another line is added it is not seen well.
-# actually I added some improvement allowing a 50% growth in the file
-# and requireing a min of 2 width
-sub show_line_numbers {
+sub refresh_notebook {
+	my $self     = shift;
+	my $document = $self->{Document} or return;
+	my $notebook = Params::Util::_INSTANCE(
+		$self->GetParent,
+		'Padre::Wx::Notebook',
+	) or return;
+
+	# Find the page we are in
+	my $id = $notebook->GetPageIndex($self);
+	return if $id == Wx::NOT_FOUND;
+
+	# Generate the page title
+	my $old      = $notebook->GetPageText($id);
+	my $filename = $document->filename || '';
+	my $modified = $self->GetModify ? '*' : ' ';
+	my $title    = $modified . (
+		$filename
+		? File::Basename::basename($filename)
+		: substr( $old, 1 )
+	);
+
+	# Fixed ticket #190: Massive GDI object leakages
+	# http://padre.perlide.org/ticket/190
+	# Please remember to call SetPageText once per the same text
+	# This still leaks but far less slowly (just on undo)
+	return if $old eq $title;
+	$notebook->SetPageText( $id, $title );
+}
+
+sub refresh_line_numbers {
 	my $self = shift;
-	my $on   = shift;
+	$self->show_line_numbers(
+		$self->config->editor_linenumbers
+	);
+}
+
+# Calculate the maximum possible width, and set to that plus a few pixels.
+# We don't allow any excess space for future growth as we anticipate calling
+# this function relatively frequently.
+sub show_line_numbers {
+	my $self  = shift;
+	my $on    = shift;
+	my $width = 0;
 
 	if ($on) {
-		my $n = 1 + List::Util::max( 2, length( $self->GetLineCount * 2 ) );
-		my $width = $n * $self->TextWidth( Wx::wxSTC_STYLE_LINENUMBER, "m" );
-		$self->SetMarginWidth( 0, $width );
-		$self->SetMarginType( 0, Wx::wxSTC_MARGIN_NUMBER );
-	} else {
-		$self->SetMarginWidth( 0, 0 );
-		$self->SetMarginType( 0, Wx::wxSTC_MARGIN_NUMBER );
+		$width  = $self->TextWidth(
+			Wx::Scintilla::STYLE_LINENUMBER,
+			"m" x List::Util::max( 2, length $self->GetLineCount )
+		) + 5; # 5 pixel left "margin of the margin
 	}
 
-	return;
+	$self->SetMarginWidth(
+		Padre::Constant::MARGIN_LINE,
+		$width,
+	);
 }
 
 sub show_calltip {
@@ -1029,12 +1181,10 @@ sub show_calltip {
 	my $line   = $self->LineFromPosition($pos);
 	my $first  = $self->PositionFromLine($line);
 	my $prefix = $self->GetTextRange( $first, $pos ); # line from beginning to current position
-	if ( $self->CallTipActive ) {
-		$self->CallTipCancel;
-	}
+	$self->CallTipCancel if $self->CallTipActive;
 
 	my $doc      = $self->current->document or return;
-	my $keywords = $doc->keywords;
+	my $keywords = $doc->get_calltip_keywords;
 	my $regex    = join '|', sort { length $a <=> length $b } keys %$keywords;
 
 	my $tip;
@@ -1268,6 +1418,13 @@ sub convert_eols {
 	return 1;
 }
 
+sub CanPaste {
+	my $self = shift;
+	return 0 unless $self->SUPER::CanPaste;
+	return 0 unless $self->clipboard_length;
+	return 1;
+}
+
 sub Paste {
 	my $self = shift;
 
@@ -1318,13 +1475,13 @@ sub _convert_paste_eols {
 	}
 
 	# To what to convert to?
-	if ( $eol_mode eq Wx::wxSTC_EOL_CRLF ) {
+	if ( $eol_mode eq Wx::Scintilla::SC_EOL_CRLF ) {
 		$to = $CRLF;
-	} elsif ( $eol_mode eq Wx::wxSTC_EOL_LF ) {
+	} elsif ( $eol_mode eq Wx::Scintilla::SC_EOL_LF ) {
 		$to = $LF;
 	} else {
 
-		#must be Wx::wxSTC_EOL_CR
+		#must be Wx::Scintilla::EOL_CR
 		$to = $CR;
 	}
 
@@ -1336,139 +1493,168 @@ sub _convert_paste_eols {
 	return $paste;
 }
 
-sub put_text_to_clipboard {
-	my ( $self, $text, $clipboard ) = @_;
-	@_ = (); # Feeble attempt to kill Scalars Leaked
+# Toggle the commenting for the content block at the selection
+sub comment_toggle {
+	my $self     = shift;
+	my $document = $self->document or return;
+	my $comment  = $document->get_comment_line_string or return;
+	my ( $start, $end ) = @_ ? @_ : $self->get_selection_block;
 
-	return if $text eq '';
+	# Find the comment pattern for this file type
+	# TO DO This is a bit dodgy, and probably won't work
+	if ( Params::Util::_ARRAY($comment) ) {
+		$comment = $comment->[0];
+	}
 
-	my $config = $self->config;
+	# The block is uncommented if any non-blank line within it is
+	my $commented = qr/^\s*\Q$comment\E/;
+	foreach my $line ( $start .. $end ) {
+		my $text = $self->GetLine($line);
+		next unless $text =~ /\S/;
+		next if $text =~ $commented;
 
-	$clipboard ||= 0;
+		# Block is NOT commented, comment it
+		return $self->comment_indent( $start, $end );
+	}
 
-	# Backup last clipboard value:
-	$self->{Clipboard_Old} = $self->get_text_from_clipboard;
-
-	#         if $self->{Clipboard_Old} ne $self->get_text_from_clipboard;
-
-	Wx::wxTheClipboard->Open;
-	Wx::wxTheClipboard->UsePrimarySelection($clipboard)
-		if $config->mid_button_paste;
-	Wx::wxTheClipboard->SetData( Wx::TextDataObject->new($text) );
-	Wx::wxTheClipboard->Close;
-
-	return;
+	# Block IS commented, uncomment it
+	return $self->comment_outdent( $start, $end );
 }
 
-sub get_text_from_clipboard {
+# Indent commenting for a line range representing a block of code
+sub comment_indent {
+	my $self     = shift;
+	my $document = $self->document or return;
+	my $comment  = $document->get_comment_line_string or return;
+	my ( $start, $end ) = @_ ? @_ : $self->get_selection_block;
+
+	my @targets = ();
+	if ( Params::Util::_ARRAY($comment) ) {
+		# Handle languages which use multi-line comment
+		push @targets, [ $end,   $end,   $comment->[1] ];
+		push @targets, [ $start, $start, $comment->[0] ];
+
+	} else {
+		# Handle line-by-line comments
+		$comment .= ' ';
+		for ( my $line = $end; $line >= $start; $line-- ) {
+			my $text = $self->GetLine($line);
+			next unless $text =~ /\S/;
+
+			# Insert the comment after the indent to retain safe tab
+			# usage for those people that use them.
+			my $pos = $self->GetLineIndentPosition($line);
+			push @targets, [ $pos, $pos, $comment ];
+		}
+	}
+
+	# Apply the changes to the editor
+	require Padre::Delta;
+	Padre::Delta->new( position => @targets )->to_editor($self);
+}
+
+# Outdent commenting for a line range representing a block of code
+sub comment_outdent {
+	my $self     = shift;
+	my $document = $self->document or return;
+	my $comment  = $document->get_comment_line_string or return;
+	my ( $start, $end ) = @_ ? @_ : $self->get_selection_block;
+
+	my @targets = ();
+	if ( Params::Util::_ARRAY($comment) ) {
+		# Handle languages which use multi-line comment
+		# TO DO to be completed
+
+	} else {
+		# Handle line-by-line comments
+		my $regexp = qr/^(\s*)(\Q$comment\E[ \t]*)/;
+		for ( my $line = $end; $line >= $start; $line-- ) {
+			my $text = $self->GetLine($line);
+			next unless $text =~ /\S/;
+
+			# Special hack, don't uncomment #! lines
+			if ( $line == 0 and $text =~ /^#!/ ) {
+				next;
+			}
+
+			# Remove the comment characters
+			next unless $text =~ $regexp;
+			my $left  = $self->PositionFromLine($line) + length($1);
+			my $right = $left + length($2);
+			push @targets, [ $left, $right, '' ];
+		}
+	}
+
+	# Apply the changes to the editor
+	require Padre::Delta;
+	Padre::Delta->new( position => @targets )->to_editor($self);
+}
+
+=pod
+
+=head2 find_line
+
+  my $line_number = $editor->find_line( 123, "sub foo {" );
+
+The C<find_line> method locates a line in a document using a line number
+and the content of the line.
+
+It is intended for use in situations where a search function has determined
+that a particular line is of interest, but the document may have changed in
+the time since the original search was made.
+
+Starting at the suggested line, it will locate the line containing the text
+which is the closest to line provided. If no text is provided the method
+acts as a simple pass-through.
+
+Returns an integer line number guaranteed to exist in the document, or
+C<undef> if the hint text could not be found anywhere in the document.
+
+=cut
+
+sub find_line {
 	my $self = shift;
-	my $text = '';
-	Wx::wxTheClipboard->Open;
-	if ( Wx::wxTheClipboard->IsSupported(Wx::wxDF_TEXT) ) {
-		my $data = Wx::TextDataObject->new;
-		if ( Wx::wxTheClipboard->GetData($data) ) {
-			$text = $data->GetText if defined $data;
+	my $line = shift;
+
+	# Handle the trivial case with no hint text
+	unless ( @_ ) {
+		return $self->line($line);
+	}
+
+	# Look for the text on the specific expected line
+	my $text  = quotemeta shift;
+	my $regex = qr/^$text[\012\015]*\Z/;
+	if ( $line == $self->line($line) ) {
+		if ( $self->GetLine($line) =~ $regex ) {
+			return $line;
 		}
-	}
-	if ( $text eq $self->GetSelectedText ) {
-		$text = $self->{Clipboard_Old};
-	}
-
-	Wx::wxTheClipboard->Close;
-	return $text;
-}
-
-# Comment or uncomment text depending on the first selected line.
-# This is the most coherent way to handle mixed blocks (commented and
-# uncommented lines).
-sub comment_toggle_lines {
-	my ( $self, $begin, $end, $str ) = @_;
-
-	my $comment = ref $str eq 'ARRAY' ? $str->[0] : $str;
-
-	if ( $self->GetLine($begin) =~ /^\s*\Q$comment\E/ ) {
-		uncomment_lines(@_);
 	} else {
-		comment_lines(@_);
+		$line = $self->line($line);
 	}
-}
 
-# $editor->comment_lines($begin, $end, $str);
-# $str is either # for perl or // for Javascript, etc.
-# $str might be ['<--', '-->] for html
-#
-# Change: for Single lines comments, it will (un)comment with indent:
-# <indent>$comment_characters<space>XXXXXXX
-# If someone has idee for commenting Haskell Guards in Single lines,
-# (well, ('-- |') is a symbol for haddock.) please fix it.
-#
-sub comment_lines {
-	my ( $self, $begin, $end, $str ) = @_;
-
-	$self->BeginUndoAction;
-	if ( ref $str eq 'ARRAY' ) {
-		my $pos = $self->PositionFromLine($begin);
-		$self->InsertText( $pos, $str->[0] );
-		$pos = $self->GetLineEndPosition($end);
-		$self->InsertText( $pos, $str->[1] );
-	} else {
-		foreach my $line ( $begin .. $end ) {
-			my $text = $self->GetLine($line);
-			if ( $text =~ /^(\s*)/ ) {
-				my $pos = $self->PositionFromLine($line);
-				$pos += length($1);
-				$self->InsertText( $pos, $str . ' ' );
+	# Search outwards from the expected line
+	my $max  = $self->GetLineCount;
+	my $low  = $line;
+	my $high = $line;
+	while ( $low >= 0 or $high <= $max ) {
+		# Search down one line
+		if ( $high <= $max ) {
+			if ( $self->GetLine($high) =~ $regex ) {
+				return $high;
 			}
+			$high++;
 		}
-	}
-	$self->EndUndoAction;
-
-	return;
-}
-
-#
-# $editor->uncomment_lines($begin, $end, $str);
-#
-# uncomment lines $begin..$end
-# Change: see comments for `comment_lines()`
-#
-sub uncomment_lines {
-	my ( $self, $begin, $end, $str ) = @_;
-
-	$self->BeginUndoAction;
-	if ( ref $str eq 'ARRAY' ) {
-		my $first = $self->PositionFromLine($begin);
-		my $last  = $first + length( $str->[0] );
-		my $text  = $self->GetTextRange( $first, $last );
-		if ( $text eq $str->[0] ) {
-			$self->SetSelection( $first, $last );
-			$self->ReplaceSelection('');
-		}
-		$last  = $self->GetLineEndPosition($end);
-		$first = $last - length( $str->[1] );
-		$text  = $self->GetTextRange( $first, $last );
-		if ( $text eq $str->[1] ) {
-			$self->SetSelection( $first, $last );
-			$self->ReplaceSelection('');
-		}
-	} else {
-		foreach my $line ( $begin .. $end ) {
-			my $text = $self->GetLine($line);
-
-			# the first line starting with '#!' can't be uncommented!
-			next if ( $line == 0 && $text =~ /^#!/ );
-
-			if ( $text =~ /^(\s*)(\Q$str\E\s*)/ ) {
-				my $start = $self->PositionFromLine($line) + length($1);
-
-				$self->SetSelection( $start, $start + length($2) );
-				$self->ReplaceSelection('');
+		if ( $low >= 0 ) {
+			if ( $self->GetLine($low) =~ $regex ) {
+				return $low;
 			}
+			$low--;
 		}
 	}
-	$self->EndUndoAction;
 
-	return;
+	# If we can't find the content text anywhere,
+	# fall back to the explicit line number.
+	return $line;
 }
 
 sub find_function {
@@ -1478,10 +1664,14 @@ sub find_function {
 	my $regex    = $document->get_function_regex($name) or return;
 
 	# Run the search
-	my ( $start, $end ) = Padre::Util::get_matches(
-		$self->GetText,
-		$regex,
-		$self->GetSelection, # Provides two params
+	require Padre::Search;
+	my ( $from,  $to  ) = $self->GetSelection;
+	my ( $start, $end ) = Padre::Search->matches(
+		text     => $self->GetText,
+		regex    => $regex,
+		submatch => 1,
+		from     => $from,
+		to       => $to,
 	);
 
 	return $start;
@@ -1489,6 +1679,62 @@ sub find_function {
 
 sub has_function {
 	defined shift->find_function(@_);
+}
+
+=pod
+
+=head2 position
+
+  my $position = $editor->position($untrusted);
+
+The C<position> method is used to clean parameters that are supposed to
+refer to a position within the editor. It takes what should be an numeric
+document position, constrains the value to the actual position range of
+the document, and removes any fractional characters.
+
+This method should generally be used when doing something to a document
+somewhere in it preferable aborting that functionality completely.
+
+Returns an integer character position guaranteed to exist in the document.
+
+=cut
+
+sub position {
+	my $self = shift;
+	my $pos  = shift;
+	my $max  = $self->GetLength;
+	$pos = 0 unless $pos;
+	$pos = 0 unless $pos > 0;
+	$pos = $max if $pos > $max;
+	return int $pos;
+}
+
+=pod
+
+=head2 line
+
+  my $line = $editor->line($untrusted);
+
+The C<line> method is used to clean parameters that are supposed to
+refer to a line within the editor. It takes what should be an numeric
+document line, constrains the value to the actual line range of
+the document, and removes any fractional characters.
+
+This method should generally be used when doing something to a document
+somewhere in it preferable aborting that functionality completely.
+
+Returns an integer line number guaranteed to exist in the document.
+
+=cut
+
+sub line {
+	my $self = shift;
+	my $line = shift;
+	my $max  = $self->GetLineCount - 1;
+	$line = 0 unless $line;
+	$line = 0 unless $line > 0;
+	$line = $max if $line > $max;
+	return int $line;
 }
 
 sub goto_function {
@@ -1500,27 +1746,49 @@ sub goto_function {
 
 sub goto_line_centerize {
 	my $self = shift;
-	my $line = shift;
-	$self->goto_pos_centerize( $self->GetLineIndentPosition($line) );
+	my $line = $self->find_line(@_);
+	$self->goto_pos_centerize(
+		$self->GetLineIndentPosition($line)
+	);
 }
 
 # CREDIT: Borrowed from Kephra
 sub goto_pos_centerize {
 	my $self = shift;
-	my $pos  = shift;
-	my $max  = $self->GetLength;
-	$pos = 0 unless $pos or $pos < 0;
-	$pos = $max if $pos > $max;
+	my $pos  = $self->position(shift);
+	my $line = $self->LineFromPosition($pos);
 
+	# Set the selection
 	$self->SetCurrentPos($pos);
-	$self->SearchAnchor;
+	$self->SetAnchor($pos);
 
-	my $line = $self->GetCurrentLine;
-	$self->ScrollToLine( $line - $self->LinesOnScreen / 2 );
-	$self->EnsureVisible($line);
-	$self->EnsureCaretVisible;
-	$self->SetSelection( $pos, $pos );
+	# Move to the position
+	$self->ScrollToLine(
+		$self->line( $line - $self->LinesOnScreen / 2 )
+	);
 	$self->SetFocus;
+
+	return 1;
+}
+
+sub goto_selection_centerize {
+	my $self  = shift;
+	my $spos  = $self->position(shift);
+	my $epos  = $self->position(shift);
+	my $sline = $self->LineFromPosition($spos);
+	my $eline = $self->LineFromPosition($epos);
+
+	# Set the selection
+	$self->SetCurrentPos($spos);
+	$self->SetAnchor($epos);
+
+	# Move to the mid-point of the selection as a starting point.
+	# If the selection is bigger than the screen,
+	# move the caret back onto the screen.
+	$self->ScrollToLine(
+		$self->line( ( $sline + $eline - $self->LinesOnScreen ) / 2 )
+	);
+	$self->EnsureCaretVisible;
 
 	return 1;
 }
@@ -1547,30 +1815,74 @@ sub insert_from_file {
 	$self->insert_text($text);
 }
 
+# Default (fast) method for deleting all leading spaces
+sub delete_leading_spaces {
+	my $self    = shift;
+	my $lines   = $self->GetLineCount;
+	my $changed = 0;
+
+	foreach my $i ( 0 .. $self->GetLineCount ) {
+		my $line = $self->GetLine($i);
+		unless ( $line =~ /\A([ \t]+)/ ) {
+			next;
+		}
+		my $start = $self->PositionFromLine($i);
+		$self->SetTargetStart($start);
+		$self->SetTargetEnd( $start + length $1 );
+		$self->BeginUndoAction unless $changed++;
+		$self->ReplaceTarget('');
+	}
+	$self->EndUndoAction if $changed;
+
+	return $changed;
+}
+
+# Default (fast) method for deleting all trailing spaces
+sub delete_trailing_spaces {
+	my $self    = shift;
+	my $lines   = $self->GetLineCount;
+	my $changed = 0;
+
+	foreach my $i ( 0 .. $self->GetLineCount ) {
+		my $line = $self->GetLine($i);
+		unless ( $line =~ /\A(.*?)([ \t]+)([\015\012]*)\z/ ) {
+			next;
+		}
+		my $start = $self->PositionFromLine($i) + length $1;
+		$self->SetTargetStart($start);
+		$self->SetTargetEnd( $start + length $2 );
+		$self->BeginUndoAction unless $changed++;
+		$self->ReplaceTarget('');
+	}
+	$self->EndUndoAction if $changed;
+
+	return $changed;
+}
+
 sub vertically_align {
-	my $editor = shift;
+	my $self = shift;
 
 	# Get the selected lines
-	my $begin = $editor->LineFromPosition( $editor->GetSelectionStart );
-	my $end   = $editor->LineFromPosition( $editor->GetSelectionEnd );
+	my $begin = $self->LineFromPosition( $self->GetSelectionStart );
+	my $end   = $self->LineFromPosition( $self->GetSelectionEnd );
 	if ( $begin == $end ) {
-		$editor->error( Wx::gettext("You must select a range of lines") );
+		$self->error( Wx::gettext("You must select a range of lines") );
 		return;
 	}
 	my @line = ( $begin .. $end );
 	my @text = ();
 	foreach (@line) {
-		my $x = $editor->PositionFromLine($_);
-		my $y = $editor->GetLineEndPosition($_);
-		push @text, $editor->GetTextRange( $x, $y );
+		my $x = $self->PositionFromLine($_);
+		my $y = $self->GetLineEndPosition($_);
+		push @text, $self->GetTextRange( $x, $y );
 	}
 
 	# Get the align character from the selection start
 	# (which must be a non-whitespace non-word character)
-	my $start = $editor->GetSelectionStart;
-	my $c = $editor->GetTextRange( $start, $start + 1 );
+	my $start = $self->GetSelectionStart;
+	my $c = $self->GetTextRange( $start, $start + 1 );
 	unless ( defined $c and $c =~ /^[^\s\w]$/ ) {
-		$editor->error( Wx::gettext("First character of selection must be a non-word character to align") );
+		$self->error( Wx::gettext("First character of selection must be a non-word character to align") );
 	}
 
 	# Locate the position of the align character,
@@ -1590,28 +1902,27 @@ sub vertically_align {
 	# Find the latest position of the starting whitespace.
 	my $longest = List::Util::max map { $_->[0] } grep {$_} @position;
 
-	# Now lets line them up
-	$editor->BeginUndoAction;
+	# Generate the target list to line them all up
+	my @targets = ();
 	foreach ( 0 .. $#line ) {
 		next unless $position[$_];
 		my $spaces = $longest - $position[$_]->[0] - $position[$_]->[1] + 1;
 		if ( $_ == 0 ) {
 			$start = $start + $spaces;
 		}
-		my $insert = $editor->PositionFromLine( $line[$_] ) + $position[$_]->[0];
+
+		my $insert = $self->PositionFromLine( $line[$_] ) + $position[$_]->[0] + 1;
 		if ( $spaces > 0 ) {
-			$editor->InsertText( $insert, ' ' x $spaces );
+			push @targets, [ $insert, $insert, ' ' x $spaces ];
 		} elsif ( $spaces < 0 ) {
-			$editor->SetSelection( $insert, $insert - $spaces );
-			$editor->ReplaceSelection('');
+			push @targets, [ $insert, $insert - $spaces, '' ];
 		}
 	}
-	$editor->EndUndoAction;
 
-	# Move the selection to the new position
-	$editor->SetSelection( $start, $start );
-
-	return;
+	# Apply the changes via a delta object
+	require Padre::Delta;
+	my $delta = Padre::Delta->new( position => reverse @targets );
+	$delta->to_editor($self);
 }
 
 sub needs_manual_colorize {
@@ -1626,13 +1937,123 @@ sub needs_manual_colorize {
 
 
 ######################################################################
-# Smart Highlighting
+# Clipboard Methods
+
+# This is not necesarily the right place for these, since things other
+# than editors might want to make use of the clipboard.
+# But it will do for now as a starting point.
+
+=pod
+
+=head2 clipboard_length
+
+  my $chars = Padre::Wx::Editor->clipboard_length;
+
+The C<clipboard_length> method returns the number of characters of text
+currently in the clipboard, if any.
+
+Returns an integer number of characters, or zero if the clipboard is empty
+or contains non-text data.
+
+=cut
+
+sub clipboard_length {
+	my $class = shift;
+	my $chars = 0;
+
+	Wx::TheClipboard->Open;
+	if ( Wx::TheClipboard->IsSupported(Wx::DF_TEXT) ) {
+		my $data = Wx::TextDataObject->new;
+		if ( Wx::TheClipboard->GetData($data) ) {
+			$chars = $data->GetTextLength if defined $data;
+		}
+	}
+	Wx::TheClipboard->Close;
+
+	return $chars;
+}
+
+# TODO Change this to clipboard_set
+sub put_text_to_clipboard {
+	my ( $self, $text, $clipboard ) = @_;
+	@_ = (); # Feeble attempt to kill Scalars Leaked
+
+	return if $text eq '';
+
+	my $config = $self->config;
+
+	$clipboard ||= 0;
+
+	# Backup last clipboard value:
+	$self->{Clipboard_Old} = $self->get_text_from_clipboard;
+
+	#         if $self->{Clipboard_Old} ne $self->get_text_from_clipboard;
+
+	Wx::TheClipboard->Open;
+	Wx::TheClipboard->UsePrimarySelection($clipboard)
+		if $config->mid_button_paste;
+	Wx::TheClipboard->SetData( Wx::TextDataObject->new($text) );
+	Wx::TheClipboard->Close;
+
+	return;
+}
+
+# TODO Change this to clipboard_text
+sub get_text_from_clipboard {
+	my $self = shift;
+	my $text = '';
+	Wx::TheClipboard->Open;
+	if ( Wx::TheClipboard->IsSupported(Wx::DF_TEXT) ) {
+		my $data = Wx::TextDataObject->new;
+		if ( Wx::TheClipboard->GetData($data) ) {
+			$text = $data->GetText if defined $data;
+		}
+	}
+	if ( $text eq $self->GetSelectedText ) {
+		$text = $self->{Clipboard_Old};
+	}
+
+	Wx::TheClipboard->Close;
+	return $text;
+}
+
+
+
+
+
+######################################################################
+# Highlighting
+
+# The main purpose of these manual highlighting methods is to prevent
+# the document classes from having to use Wx code directly.
+
+sub manual_highlight_show {
+	my $self       = shift;
+	my $position   = shift;
+	my $characters = shift;
+	$self->SetIndicatorCurrent(Padre::Constant::INDICATOR_UNDERLINE);
+	$self->IndicatorFillRange( $position, $characters );
+	return 1;
+}
+
+sub manual_highlight_hide {
+	my $self       = shift;
+	my $position   = shift;
+	my $characters = shift;
+	$self->SetIndicatorCurrent(Padre::Constant::INDICATOR_UNDERLINE);
+	$self->IndicatorClearRange( $position, $characters );
+}
 
 sub smart_highlight_show {
 	my $self             = shift;
 	my $selection        = $self->GetSelectedText;
 	my $selection_length = length $selection;
+
+	# Zero length selection should be ignored
 	return if $selection_length == 0;
+
+	# Whitespace should be ignored
+	return if $selection =~ /^\s+$/;
 
 	my $selection_re = quotemeta $selection;
 	my $line_count   = $self->GetLineCount;
@@ -1658,7 +2079,6 @@ sub smart_highlight_show {
 				{
 				start => $start,
 				len   => $selection_length,
-				style => $self->GetStyleAt($start)
 				};
 		}
 	}
@@ -1666,8 +2086,8 @@ sub smart_highlight_show {
 	# smart highlight if there are more than one occurrence...
 	if ( scalar @{ $self->{styles} } > 1 ) {
 		foreach my $style ( @{ $self->{styles} } ) {
-			$self->StartStyling( $style->{start}, 0xFF );
-			$self->SetStyling( $style->{len}, Wx::wxSTC_STYLE_DEFAULT );
+			$self->SetIndicatorCurrent(Padre::Constant::INDICATOR_SMART_HIGHLIGHT);
+			$self->IndicatorFillRange( $style->{start}, $style->{len} );
 		}
 	}
 
@@ -1678,10 +2098,13 @@ sub smart_highlight_hide {
 
 	my @styles = @{ $self->{styles} };
 	if ( scalar @styles ) {
-		foreach my $style (@styles) {
-			$self->StartStyling( $style->{start}, 0xFF );
-			$self->SetStyling( $style->{len}, $style->{style} );
-		}
+
+		# Clear indicators for all available text
+		$self->SetIndicatorCurrent(Padre::Constant::INDICATOR_SMART_HIGHLIGHT);
+		my $text_length = $self->GetTextLength;
+		$self->IndicatorClearRange( 0, $text_length ) if $text_length > 0;
+
+		# Clear old styles
 		$#{ $self->{styles} } = -1;
 	}
 }
@@ -1703,26 +2126,27 @@ BEGIN {
 		if ($on) {
 
 			# Setup a margin to hold fold markers
-			$self->SetMarginType( 2, Wx::wxSTC_MARGIN_SYMBOL ); # margin number 2 for symbols
-			$self->SetMarginMask( 2, Wx::wxSTC_MASK_FOLDERS );  # set up mask for folding symbols
-			$self->SetMarginSensitive( 2, 1 );                  # this one needs to be mouse-aware
-			$self->SetMarginWidth( 2, 16 );                     # set margin 2 16 px wide
+			 # This one needs to be mouse-aware.
+			$self->SetMarginSensitive(
+				Padre::Constant::MARGIN_FOLD,
+				1,
+			);
+			$self->SetMarginWidth(
+				Padre::Constant::MARGIN_FOLD,
+				16,
+			);
 
-			# Define folding markers
+			# Define folding markers. The colours are really dummy
+			# as the themes will override them
 			my $w = Wx::Colour->new("white");
 			my $b = Wx::Colour->new("black");
-			$self->MarkerDefine( Wx::wxSTC_MARKNUM_FOLDEREND,     Wx::wxSTC_MARK_BOXPLUSCONNECTED,  $w, $b );
-			$self->MarkerDefine( Wx::wxSTC_MARKNUM_FOLDEROPENMID, Wx::wxSTC_MARK_BOXMINUSCONNECTED, $w, $b );
-			$self->MarkerDefine( Wx::wxSTC_MARKNUM_FOLDERMIDTAIL, Wx::wxSTC_MARK_TCORNER,           $w, $b );
-			$self->MarkerDefine( Wx::wxSTC_MARKNUM_FOLDERTAIL,    Wx::wxSTC_MARK_LCORNER,           $w, $b );
-			$self->MarkerDefine( Wx::wxSTC_MARKNUM_FOLDERSUB,     Wx::wxSTC_MARK_VLINE,             $w, $b );
-			$self->MarkerDefine( Wx::wxSTC_MARKNUM_FOLDER,        Wx::wxSTC_MARK_BOXPLUS,           $w, $b );
-			$self->MarkerDefine( Wx::wxSTC_MARKNUM_FOLDEROPEN,    Wx::wxSTC_MARK_BOXMINUS,          $w, $b );
-
-			# This would be nice but the color used for drawing the lines is
-			# Wx::wxSTC_STYLE_DEFAULT, i.e. usually black and therefore quite
-			# obtrusive...
-			# $self->SetFoldFlags( Wx::wxSTC_FOLDFLAG_LINEBEFORE_CONTRACTED | Wx::wxSTC_FOLDFLAG_LINEAFTER_CONTRACTED );
+			$self->MarkerDefine( Wx::Scintilla::SC_MARKNUM_FOLDEREND,     Wx::Scintilla::SC_MARK_BOXPLUSCONNECTED,  $w, $b );
+			$self->MarkerDefine( Wx::Scintilla::SC_MARKNUM_FOLDEROPENMID, Wx::Scintilla::SC_MARK_BOXMINUSCONNECTED, $w, $b );
+			$self->MarkerDefine( Wx::Scintilla::SC_MARKNUM_FOLDERMIDTAIL, Wx::Scintilla::SC_MARK_TCORNER,           $w, $b );
+			$self->MarkerDefine( Wx::Scintilla::SC_MARKNUM_FOLDERTAIL,    Wx::Scintilla::SC_MARK_LCORNER,           $w, $b );
+			$self->MarkerDefine( Wx::Scintilla::SC_MARKNUM_FOLDERSUB,     Wx::Scintilla::SC_MARK_VLINE,             $w, $b );
+			$self->MarkerDefine( Wx::Scintilla::SC_MARKNUM_FOLDER,        Wx::Scintilla::SC_MARK_BOXPLUS,           $w, $b );
+			$self->MarkerDefine( Wx::Scintilla::SC_MARKNUM_FOLDEROPEN,    Wx::Scintilla::SC_MARK_BOXMINUS,          $w, $b );
 
 			# Activate
 			$self->SetProperty( 'fold' => 1 );
@@ -1736,7 +2160,7 @@ BEGIN {
 						my $level_clicked = $editor->GetFoldLevel($line_clicked);
 
 						# TO DO check this (cf. ~/contrib/samples/stc/edit.cpp from wxWidgets)
-						#if ( $level_clicked && wxSTC_FOLDLEVELHEADERFLAG) > 0) {
+						#if ( $level_clicked && Wx::Scintilla::FOLDLEVELHEADERFLAG) > 0) {
 						$editor->ToggleFold($line_clicked);
 
 						#}
@@ -1744,8 +2168,14 @@ BEGIN {
 				}
 			);
 		} else {
-			$self->SetMarginSensitive( 2, 0 );
-			$self->SetMarginWidth( 2, 0 );
+			$self->SetMarginSensitive(
+				Padre::Constant::MARGIN_FOLD,
+				0,
+			);
+			$self->SetMarginWidth(
+				Padre::Constant::MARGIN_FOLD,
+				0,
+			);
 
 			# Deactivate
 			$self->SetProperty( 'fold' => 1 );
@@ -1878,15 +2308,28 @@ BEGIN {
 		my $filename = $file->filename;
 		my $position = Padre::DB::LastPositionInFile->get_last_pos($filename);
 		return unless defined $position;
-		$self->SetCurrentPos($position);
-		$self->SetSelection( $position, $position );
+		$self->goto_pos_centerize($position);
 		}
 		if Padre::Feature::CURSORMEMORY;
 }
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+=pod
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
+
+This program is free software; you can redistribute
+it and/or modify it under the same terms as Perl itself.
+
+The full text of the license can be found in the
+LICENSE file included with this module.
+
+=cut
+
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

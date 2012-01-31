@@ -6,7 +6,7 @@ use warnings;
 use Padre::Wx             ();
 use Padre::Wx::Role::Main ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Wx::Dialog
@@ -36,17 +36,17 @@ sub new {
 	my $self = $class->SUPER::new(
 		$main,
 		-1,
-		Wx::gettext('Goto'),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxRESIZE_BORDER | Wx::wxSYSTEM_MENU | Wx::wxCAPTION | Wx::wxCLOSE_BOX
+		Wx::gettext('Go to'),
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::RESIZE_BORDER | Wx::SYSTEM_MENU | Wx::CAPTION | Wx::CLOSE_BOX
 	);
 
 	# Minimum dialog size
 	$self->SetMinSize( [ 330, 180 ] );
 
 	# create sizer that will host all controls
-	my $sizer = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
+	my $sizer = Wx::BoxSizer->new(Wx::HORIZONTAL);
 
 	# Create the controls
 	$self->_create_controls($sizer);
@@ -83,44 +83,44 @@ sub _create_controls {
 
 	# Line or position choice
 	$self->{line_mode} = Wx::RadioBox->new(
-		$self,                 -1, Wx::gettext('Position type'),
-		Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		[ Wx::gettext('Line number'), Wx::gettext('Character position') ]
+		$self,               -1, Wx::gettext('Position type'),
+		Wx::DefaultPosition, Wx::DefaultSize,
+		[ _ln(), _cp() ]
 	);
 
 	# OK button (obviously)
 	$self->{button_ok} = Wx::Button->new(
-		$self, Wx::wxID_OK, Wx::gettext('&OK'),
+		$self, Wx::ID_OK, Wx::gettext('&OK'),
 	);
 	$self->{button_ok}->SetDefault;
 	$self->{button_ok}->Enable(0);
 
 	# Cancel button (obviously)
 	$self->{button_cancel} = Wx::Button->new(
-		$self, Wx::wxID_CANCEL, Wx::gettext('&Cancel'),
+		$self, Wx::ID_CANCEL, Wx::gettext('&Cancel'),
 	);
 
 	#----- Dialog Layout
 
 	# Main button sizer
-	my $button_sizer = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$button_sizer->Add( $self->{button_ok},     1, 0,          0 );
-	$button_sizer->Add( $self->{button_cancel}, 1, Wx::wxLEFT, 5 );
+	my $button_sizer = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$button_sizer->Add( $self->{button_ok},     1, 0,        0 );
+	$button_sizer->Add( $self->{button_cancel}, 1, Wx::LEFT, 5 );
 	$button_sizer->AddSpacer(5);
 
 	# Create the main vertical sizer
-	my $vsizer = Wx::BoxSizer->new(Wx::wxVERTICAL);
-	$vsizer->Add( $self->{line_mode},   0, Wx::wxALL | Wx::wxEXPAND, 3 );
-	$vsizer->Add( $self->{current},     0, Wx::wxALL | Wx::wxEXPAND, 3 );
-	$vsizer->Add( $self->{goto_label},  0, Wx::wxALL | Wx::wxEXPAND, 3 );
-	$vsizer->Add( $self->{goto_text},   0, Wx::wxALL | Wx::wxEXPAND, 3 );
-	$vsizer->Add( $self->{status_line}, 0, Wx::wxALL | Wx::wxEXPAND, 2 );
+	my $vsizer = Wx::BoxSizer->new(Wx::VERTICAL);
+	$vsizer->Add( $self->{line_mode},   0, Wx::ALL | Wx::EXPAND, 3 );
+	$vsizer->Add( $self->{current},     0, Wx::ALL | Wx::EXPAND, 3 );
+	$vsizer->Add( $self->{goto_label},  0, Wx::ALL | Wx::EXPAND, 3 );
+	$vsizer->Add( $self->{goto_text},   0, Wx::ALL | Wx::EXPAND, 3 );
+	$vsizer->Add( $self->{status_line}, 0, Wx::ALL | Wx::EXPAND, 2 );
 	$vsizer->AddSpacer(5);
-	$vsizer->Add( $button_sizer, 0, Wx::wxALIGN_RIGHT, 5 );
+	$vsizer->Add( $button_sizer, 0, Wx::ALIGN_RIGHT, 5 );
 	$vsizer->AddSpacer(5);
 
 	# Wrap with a horizontal sizer to get left/right padding
-	$sizer->Add( $vsizer, 1, Wx::wxALL | Wx::wxEXPAND, 5 );
+	$sizer->Add( $vsizer, 1, Wx::ALL | Wx::EXPAND, 5 );
 
 	return;
 
@@ -190,14 +190,14 @@ sub _on_ok_button {
 	my $self = shift;
 
 	# Fetch values
-	my $line_mode = $self->{line_mode}->GetStringSelection eq Wx::gettext('Line number');
+	my $line_mode = $self->{line_mode}->GetStringSelection eq _ln();
 	my $value = $self->{goto_text}->GetValue;
 
 	# Destroy the dialog
 	$self->Hide;
 
 	if ( $value !~ m{^\d+$} ) {
-		Padre::Current::_CURRENT->main->error( Wx::gettext('Not a positive number!') );
+		Padre::Current::_CURRENT->main->error( Wx::gettext('Not a positive number.') );
 		return;
 	}
 
@@ -229,11 +229,11 @@ sub _on_ok_button {
 sub _update_label {
 	my $self      = shift;
 	my $line_mode = $self->{line_mode}->GetStringSelection;
-	if ( $line_mode eq Wx::gettext('Line number') ) {
+	if ( $line_mode eq _ln() ) {
 		$self->{goto_label}
 			->SetLabel( sprintf( Wx::gettext('&Enter a line number between 1 and %s:'), $self->{max_line_number} ) );
 		$self->{current}->SetLabel( sprintf( Wx::gettext('Current line number: %s'), $self->{current_line_number} ) );
-	} elsif ( $line_mode eq Wx::gettext('Character position') ) {
+	} elsif ( $line_mode eq _cp() ) {
 		$self->{goto_label}
 			->SetLabel( sprintf( Wx::gettext('&Enter a position between 1 and %s:'), $self->{max_position} ) );
 		$self->{current}->SetLabel( sprintf( Wx::gettext('Current position: %s'), $self->{current_position} ) );
@@ -248,7 +248,7 @@ sub _update_label {
 sub _validate {
 	my $self = shift;
 
-	my $line_mode = $self->{line_mode}->GetStringSelection eq Wx::gettext('Line number');
+	my $line_mode = $self->{line_mode}->GetStringSelection eq _ln();
 	my $value = $self->{goto_text}->GetValue;
 
 	# If it is empty, do not warn about it but disable it though
@@ -260,7 +260,7 @@ sub _validate {
 
 	# Should be an integer number
 	if ( $value !~ /^\d+$/ ) {
-		$self->{status_line}->SetLabel( Wx::gettext('Not a positive number!') );
+		$self->{status_line}->SetLabel( Wx::gettext('Not a positive number.') );
 		$self->{button_ok}->Enable(0);
 		return;
 	}
@@ -269,7 +269,7 @@ sub _validate {
 	my $editor = $self->current->editor;
 	my $max_value = $line_mode ? $self->{max_line_number} : $self->{max_position};
 	if ( $value == 0 or $value > $max_value ) {
-		$self->{status_line}->SetLabel( Wx::gettext('Out of range!') );
+		$self->{status_line}->SetLabel( Wx::gettext('Out of range.') );
 		$self->{button_ok}->Enable(0);
 
 		return;
@@ -339,6 +339,8 @@ sub show {
 
 	return;
 }
+sub _ln { Wx::gettext('Line number') }
+sub _cp { Wx::gettext('Character position') }
 
 1;
 
@@ -346,7 +348,7 @@ sub show {
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -356,7 +358,7 @@ LICENSE file included with this module.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

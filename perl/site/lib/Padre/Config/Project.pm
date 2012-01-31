@@ -10,7 +10,7 @@ use File::Basename ();
 use YAML::Tiny     ();
 use Params::Util   ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 
 
@@ -19,15 +19,18 @@ our $VERSION = '0.90';
 ######################################################################
 # Constructor
 
-use Class::XSAccessor {
-	constructor => 'new',
-	getters     => {
-		dirname  => 'dirname',
-		fullname => 'fullname',
-	},
-};
+sub new {
+	my $class = shift;
+	bless { @_ }, $class;
+}
 
-# TO DO Write constructor that checks the config?
+sub dirname {
+	$_[0]->{dirname};
+}
+
+sub fullname {
+	$_[0]->{fullname};
+}
 
 sub read {
 	my $class = shift;
@@ -43,11 +46,10 @@ sub read {
 	return unless Params::Util::_HASH0($hash);
 
 	# Create the object, saving the file name and directory for later usage
-	my $dirname = File::Basename::dirname($fullname);
 	return $class->new(
 		%$hash,
-		dirname  => $dirname,
 		fullname => $fullname,
+		dirname  => File::Basename::dirname($fullname),
 	);
 }
 
@@ -65,7 +67,7 @@ sub clone {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

@@ -12,7 +12,7 @@ use Padre::Locale   ();
 use Padre::Wx       ();
 use Padre::Wx::Menu ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Wx::Menu';
 
 
@@ -51,7 +51,7 @@ sub new {
 	$self->{live} = Wx::Menu->new;
 	$self->Append(
 		-1,
-		Wx::gettext("Live Support"),
+		Wx::gettext("&Live Support"),
 		$self->{live}
 	);
 
@@ -78,7 +78,7 @@ sub new {
 
 	# Add interesting and helpful websites
 	$self->add_menu_action(
-		'help.visit_perlmonks',
+		'help.visit_perl_websites',
 	);
 
 	$self->AppendSeparator;
@@ -102,7 +102,12 @@ sub new {
 	$self->add_menu_action(
 		'help.about',
 	);
-
+	
+	# Add the About2
+	$self->add_menu_action(
+		'help.about2',
+	);
+	
 	return $self;
 }
 
@@ -123,7 +128,7 @@ sub refresh {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

@@ -9,7 +9,7 @@ use Padre::Constant       ();
 use Padre::Wx             ();
 use Padre::Wx::Role::Main ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Wx::AuiNotebook
@@ -25,9 +25,9 @@ sub new {
 	my $self = $class->SUPER::new(
 		$main,
 		-1,
-		Wx::wxDefaultPosition,
+		Wx::DefaultPosition,
 		Wx::Size->new( 350, 300 ), # Used when floating
-		Wx::wxAUI_NB_SCROLL_BUTTONS | Wx::wxAUI_NB_TOP | Wx::wxBORDER_NONE | Wx::wxAUI_NB_CLOSE_ON_ACTIVE_TAB
+		Wx::AUI_NB_SCROLL_BUTTONS | Wx::AUI_NB_TOP | Wx::BORDER_NONE | Wx::AUI_NB_CLOSE_ON_ACTIVE_TAB
 	);
 
 	# Add ourself to the window manager
@@ -78,7 +78,7 @@ sub show {
 	# Add the page
 	$self->AddPage(
 		$page,
-		$page->gettext_label,
+		$page->view_label,
 		1,
 	);
 	if ( $page->can('view_icon') ) {
@@ -135,7 +135,7 @@ sub hide {
 sub refresh {
 	my $self = shift;
 	foreach my $i ( 0 .. $self->GetPageCount - 1 ) {
-		$self->SetPageText( $i, $self->GetPage($i)->gettext_label );
+		$self->SetPageText( $i, $self->GetPage($i)->view_label );
 	}
 	return;
 }
@@ -144,7 +144,7 @@ sub relocale {
 	my $self = shift;
 	foreach my $i ( 0 .. $self->GetPageCount - 1 ) {
 		my $tool = $self->GetPage($i);
-		$self->SetPageText( $i, $tool->gettext_label );
+		$self->SetPageText( $i, $tool->view_label );
 		if ( $tool->can('relocale') ) {
 			$tool->relocale;
 		} else {
@@ -180,7 +180,7 @@ sub on_close {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

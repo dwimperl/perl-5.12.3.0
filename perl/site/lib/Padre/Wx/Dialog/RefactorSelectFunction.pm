@@ -10,7 +10,7 @@ use warnings;
 use Padre::Wx       ();
 use Padre::Wx::Icon ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Wx::Dialog';
 
 use Class::XSAccessor {
@@ -36,9 +36,9 @@ sub new {
 		$parent,
 		-1,
 		Wx::gettext('Select Function'),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxDEFAULT_FRAME_STYLE | Wx::wxTAB_TRAVERSAL,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::DEFAULT_FRAME_STYLE | Wx::TAB_TRAVERSAL,
 	);
 
 	$self->{cancelled} = 0;
@@ -70,7 +70,7 @@ sub _create {
 	my $self = shift;
 
 	# create vertical box that will host all controls
-	my $vbox = Wx::BoxSizer->new(Wx::wxVERTICAL);
+	my $vbox = Wx::BoxSizer->new(Wx::VERTICAL);
 	$self->SetSizer($vbox);
 	$self->CenterOnParent;
 
@@ -91,15 +91,15 @@ sub _create_list {
 		$self, -1,
 		Wx::gettext("Select which subroutine you want the new subroutine\ninserted before.")
 	);
-	$vbox->Add( $label, 0, Wx::wxALL, 5 );
+	$vbox->Add( $label, 0, Wx::ALL, 5 );
 
 	# create list
 	my $list = Wx::ListView->new(
 		$self,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxLC_REPORT | Wx::wxLC_SINGLE_SEL,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::LC_REPORT | Wx::LC_SINGLE_SEL,
 	);
 	$list->InsertColumn( 0, Wx::gettext('Function') );
 	$self->_list($list);
@@ -110,7 +110,7 @@ sub _create_list {
 	Wx::Event::EVT_LIST_COL_CLICK( $self, $list, \&_on_list_col_click );
 
 	# pack the list
-	$vbox->Add( $list, 1, Wx::wxALL | Wx::wxEXPAND, 5 );
+	$vbox->Add( $list, 1, Wx::ALL | Wx::EXPAND, 5 );
 }
 
 
@@ -118,18 +118,18 @@ sub _create_buttons {
 	my $self = shift;
 
 	# the hbox
-	my $hbox = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$self->_vbox->Add( $hbox, 0, Wx::wxALL | Wx::wxEXPAND, 5 );
+	my $hbox = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$self->_vbox->Add( $hbox, 0, Wx::ALL | Wx::EXPAND, 5 );
 
 	# the buttons
-	my $bs = Wx::Button->new( $self, -1, Wx::gettext('Select') );
-	my $bc = Wx::Button->new( $self, Wx::wxID_CANCEL, Wx::gettext('Cancel') );
+	my $bs = Wx::Button->new( $self, -1,            Wx::gettext('Select') );
+	my $bc = Wx::Button->new( $self, Wx::ID_CANCEL, Wx::gettext('Cancel') );
 	$self->_butselect($bs);
 	Wx::Event::EVT_BUTTON( $self, $bs, \&_on_butselect_clicked );
 	Wx::Event::EVT_BUTTON( $self, $bc, \&_on_butclose_clicked );
-	$hbox->Add( $bs, 0, Wx::wxALL, 5 );
+	$hbox->Add( $bs, 0, Wx::ALL, 5 );
 	$hbox->AddStretchSpacer;
-	$hbox->Add( $bc, 0, Wx::wxALL, 5 );
+	$hbox->Add( $bc, 0, Wx::ALL, 5 );
 }
 
 sub _refresh_list {
@@ -164,8 +164,8 @@ sub _refresh_list {
 	# auto-resize columns
 	my $flag =
 		$list->GetItemCount
-		? Wx::wxLIST_AUTOSIZE
-		: Wx::wxLIST_AUTOSIZE_USEHEADER;
+		? Wx::LIST_AUTOSIZE
+		: Wx::LIST_AUTOSIZE_USEHEADER;
 	$list->SetColumnWidth( $_, $flag ) for 0 .. 2;
 
 	# making sure the list can show all columns
@@ -182,7 +182,7 @@ sub _select_first_item {
 
 	if ( $list->GetItemCount ) {
 		my $item = $list->GetItem(0);
-		$item->SetState(Wx::wxLIST_STATE_SELECTED);
+		$item->SetState(Wx::LIST_STATE_SELECTED);
 		$list->SetItem($item);
 	} else {
 
@@ -270,7 +270,7 @@ sub _on_list_item_activated {
 
 __END__
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

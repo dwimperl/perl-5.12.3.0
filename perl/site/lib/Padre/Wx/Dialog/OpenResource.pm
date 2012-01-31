@@ -8,10 +8,11 @@ use Padre::DB             ();
 use Padre::Wx             ();
 use Padre::Wx::Icon       ();
 use Padre::Wx::Role::Main ();
-use Padre::MimeTypes      ();
+use Padre::MIME      ();
 use Padre::Role::Task     ();
+use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Role::Task
 	Padre::Wx::Role::Main
@@ -28,9 +29,9 @@ sub new {
 		$main,
 		-1,
 		Wx::gettext('Open Resources'),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxDEFAULT_FRAME_STYLE | Wx::wxTAB_TRAVERSAL,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::DEFAULT_FRAME_STYLE | Wx::TAB_TRAVERSAL,
 	);
 
 	$self->init_search;
@@ -113,12 +114,8 @@ sub ok_button {
 			}
 		};
 		if ($@) {
-			Wx::MessageBox(
-				Wx::gettext('Error while trying to perform Padre action'),
-				Wx::gettext('Error'),
-				Wx::wxOK,
-				$main,
-			);
+			$main->error(sprintf( Wx::gettext('Error while trying to perform Padre action: %s'), $@ ));
+			TRACE("Error while trying to perform Padre action: $@") if DEBUG;
 		} else {
 
 			# And insert a recently used tuple if it is not found
@@ -151,7 +148,7 @@ sub _create {
 	my $self = shift;
 
 	# create sizer that will host all controls
-	$self->{sizer} = Wx::BoxSizer->new(Wx::wxVERTICAL);
+	$self->{sizer} = Wx::BoxSizer->new(Wx::VERTICAL);
 
 	# create the controls
 	$self->_create_controls;
@@ -174,23 +171,23 @@ sub _create_buttons {
 
 	$self->{ok_button} = Wx::Button->new(
 		$self,
-		Wx::wxID_OK,
+		Wx::ID_OK,
 		Wx::gettext('&OK'),
 	);
 	$self->{ok_button}->SetDefault;
 	$self->{cancel_button} = Wx::Button->new(
 		$self,
-		Wx::wxID_CANCEL,
+		Wx::ID_CANCEL,
 		Wx::gettext('&Cancel'),
 	);
 
-	my $buttons = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
+	my $buttons = Wx::BoxSizer->new(Wx::HORIZONTAL);
 	$buttons->AddStretchSpacer;
-	$buttons->Add( $self->{ok_button},     0, Wx::wxALL | Wx::wxEXPAND, 5 );
-	$buttons->Add( $self->{cancel_button}, 0, Wx::wxALL | Wx::wxEXPAND, 5 );
-	$self->{sizer}->Add( $buttons, 0, Wx::wxALL | Wx::wxEXPAND | Wx::wxALIGN_CENTER, 5 );
+	$buttons->Add( $self->{ok_button},     0, Wx::ALL | Wx::EXPAND, 5 );
+	$buttons->Add( $self->{cancel_button}, 0, Wx::ALL | Wx::EXPAND, 5 );
+	$self->{sizer}->Add( $buttons, 0, Wx::ALL | Wx::EXPAND | Wx::ALIGN_CENTER, 5 );
 
-	Wx::Event::EVT_BUTTON( $self, Wx::wxID_OK, \&ok_button );
+	Wx::Event::EVT_BUTTON( $self, Wx::ID_OK, \&ok_button );
 }
 
 #
@@ -209,15 +206,15 @@ sub _create_controls {
 		$self,
 		-1,
 		'',
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 	);
 	$self->{search_text}->SetToolTip( Wx::gettext('Enter parts of the resource name to find it') );
 
 	$self->{popup_button} = Wx::BitmapButton->new(
 		$self,
 		-1,
-		Padre::Wx::Icon::find("actions/down")
+		Padre::Wx::Icon::find("actions/go-down")
 	);
 	$self->{popup_button}->SetToolTip( Wx::gettext('Click on the arrow for filter settings') );
 
@@ -231,10 +228,10 @@ sub _create_controls {
 	$self->{matches_list} = Wx::ListBox->new(
 		$self,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 		[],
-		Wx::wxLB_EXTENDED,
+		Wx::LB_EXTENDED,
 	);
 	$self->{matches_list}->SetToolTip( Wx::gettext('Select one or more resources to open') );
 
@@ -243,9 +240,9 @@ sub _create_controls {
 		$self,
 		-1,
 		Wx::gettext('Current Directory: ') . $self->{directory},
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxTE_READONLY,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::TE_READONLY,
 	);
 
 	my $folder_image = Wx::StaticBitmap->new(
@@ -276,22 +273,22 @@ sub _create_controls {
 
 	my $hb;
 	$self->{sizer}->AddSpacer(10);
-	$self->{sizer}->Add( $search_label, 0, Wx::wxALL | Wx::wxEXPAND, 2 );
-	$hb = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
+	$self->{sizer}->Add( $search_label, 0, Wx::ALL | Wx::EXPAND, 2 );
+	$hb = Wx::BoxSizer->new(Wx::HORIZONTAL);
 	$hb->AddSpacer(2);
-	$hb->Add( $self->{search_text},  1, Wx::wxALIGN_CENTER_VERTICAL, 2 );
-	$hb->Add( $self->{popup_button}, 0, Wx::wxALL | Wx::wxEXPAND,    2 );
+	$hb->Add( $self->{search_text},  1, Wx::ALIGN_CENTER_VERTICAL, 2 );
+	$hb->Add( $self->{popup_button}, 0, Wx::ALL | Wx::EXPAND,      2 );
 	$hb->AddSpacer(1);
-	$self->{sizer}->Add( $hb,                   0, Wx::wxBOTTOM | Wx::wxEXPAND, 5 );
-	$self->{sizer}->Add( $matches_label,        0, Wx::wxALL | Wx::wxEXPAND,    2 );
-	$self->{sizer}->Add( $self->{matches_list}, 1, Wx::wxALL | Wx::wxEXPAND,    2 );
-	$hb = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
+	$self->{sizer}->Add( $hb,                   0, Wx::BOTTOM | Wx::EXPAND, 5 );
+	$self->{sizer}->Add( $matches_label,        0, Wx::ALL | Wx::EXPAND,    2 );
+	$self->{sizer}->Add( $self->{matches_list}, 1, Wx::ALL | Wx::EXPAND,    2 );
+	$hb = Wx::BoxSizer->new(Wx::HORIZONTAL);
 	$hb->AddSpacer(2);
-	$hb->Add( $folder_image,        0, Wx::wxALL | Wx::wxEXPAND,    1 );
-	$hb->Add( $self->{status_text}, 1, Wx::wxALIGN_CENTER_VERTICAL, 1 );
-	$hb->Add( $self->{copy_button}, 0, Wx::wxALL | Wx::wxEXPAND,    1 );
+	$hb->Add( $folder_image,        0, Wx::ALL | Wx::EXPAND,      1 );
+	$hb->Add( $self->{status_text}, 1, Wx::ALIGN_CENTER_VERTICAL, 1 );
+	$hb->Add( $self->{copy_button}, 0, Wx::ALL | Wx::EXPAND,      1 );
 	$hb->AddSpacer(1);
-	$self->{sizer}->Add( $hb, 0, Wx::wxBOTTOM | Wx::wxEXPAND, 5 );
+	$self->{sizer}->Add( $hb, 0, Wx::BOTTOM | Wx::EXPAND, 5 );
 	$self->_setup_events;
 
 	return;
@@ -311,12 +308,12 @@ sub _setup_events {
 			my $code  = $event->GetKeyCode;
 
 			$self->{matches_list}->SetFocus
-				if ( $code == Wx::WXK_DOWN )
-				or ( $code == Wx::WXK_UP )
-				or ( $code == Wx::WXK_NUMPAD_PAGEDOWN )
-				or ( $code == Wx::WXK_PAGEDOWN )
-				or ( $code == Wx::WXK_NUMPAD_PAGEUP )
-				or ( $code == Wx::WXK_PAGEUP );
+				if ( $code == Wx::K_DOWN )
+				or ( $code == Wx::K_UP )
+				or ( $code == Wx::K_NUMPAD_PAGEDOWN )
+				or ( $code == Wx::K_PAGEDOWN )
+				or ( $code == Wx::K_NUMPAD_PAGEUP )
+				or ( $code == Wx::K_PAGEUP );
 
 
 			$event->Skip(1);
@@ -331,12 +328,12 @@ sub _setup_events {
 			my $code  = $event->GetKeyCode;
 
 			$self->{search_text}->SetFocus
-				unless ( $code == Wx::WXK_DOWN )
-				or ( $code == Wx::WXK_UP )
-				or ( $code == Wx::WXK_NUMPAD_PAGEDOWN )
-				or ( $code == Wx::WXK_PAGEDOWN )
-				or ( $code == Wx::WXK_NUMPAD_PAGEUP )
-				or ( $code == Wx::WXK_PAGEUP );
+				unless ( $code == Wx::K_DOWN )
+				or ( $code == Wx::K_UP )
+				or ( $code == Wx::K_NUMPAD_PAGEDOWN )
+				or ( $code == Wx::K_PAGEDOWN )
+				or ( $code == Wx::K_NUMPAD_PAGEUP )
+				or ( $code == Wx::K_PAGEUP );
 
 			$event->Skip(1);
 		}
@@ -392,10 +389,10 @@ sub _setup_events {
 			my @matches      = $self->{matches_list}->GetSelections;
 			my $num_selected = scalar @matches;
 			if ( $num_selected == 1 ) {
-				if ( Wx::wxTheClipboard->Open ) {
-					Wx::wxTheClipboard->SetData(
+				if ( Wx::TheClipboard->Open ) {
+					Wx::TheClipboard->SetData(
 						Wx::TextDataObject->new( $self->{matches_list}->GetClientData( $matches[0] ) ) );
-					Wx::wxTheClipboard->Close;
+					Wx::TheClipboard->Close;
 				}
 			}
 		}
@@ -581,7 +578,10 @@ sub render {
 
 			# display package name if it is a Perl file
 			my $pkg = '';
-			my $mime_type = Padre::MimeTypes->guess_mimetype( undef, $file );
+			my $mime_type = Padre::MIME->detect(
+				file  => $file,
+				perl6 => $self->config->lang_perl6_auto_detection,
+			);
 			if ( $mime_type eq 'application/x-perl' or $mime_type eq 'application/x-perl6' ) {
 				my $contents = Padre::Util::slurp($file);
 				if ( $contents && $$contents =~ /\s*package\s+(.+);/ ) {
@@ -608,7 +608,10 @@ sub render {
 			} else {
 
 				# display package name if it is a Perl file
-				my $mime_type = Padre::MimeTypes->guess_mimetype( undef, $file );
+				my $mime_type = Padre::MIME->detect(
+					file => $file,
+					perl6 => $self->config->lang_perl6_auto_detection,
+				);
 				if ( $mime_type eq 'application/x-perl' or $mime_type eq 'application/x-perl6' ) {
 					my $contents = Padre::Util::slurp($file);
 					if ( $contents && $$contents =~ /\s*package\s+(.+);/ ) {
@@ -685,14 +688,14 @@ Ahmad M. Zawawi E<lt>ahmad.zawawi at gmail.comE<gt>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

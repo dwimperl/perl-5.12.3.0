@@ -5,18 +5,18 @@ package Padre::Wx::Dialog::RegexEditor;
 use 5.008;
 use strict;
 use warnings;
-use Padre::Wx             ();
+use Padre::Wx 'RichText';
 use Padre::Wx::Icon       ();
 use Padre::Wx::Role::Main ();
 
-# RichTextCtrl
-use Wx::RichText ();
-
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Wx::Dialog
 };
+
+
+
 
 
 ######################################################################
@@ -31,9 +31,9 @@ sub new {
 		$parent,
 		-1,
 		Wx::gettext('Regex Editor'),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxDEFAULT_FRAME_STYLE,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::DEFAULT_FRAME_STYLE,
 	);
 
 	# Set basic dialog properties
@@ -41,7 +41,7 @@ sub new {
 	$self->SetMinSize( [ 380, 500 ] );
 
 	# create sizer that will host all controls
-	my $sizer = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
+	my $sizer = Wx::BoxSizer->new(Wx::HORIZONTAL);
 	$self->{sizer} = $sizer;
 
 	# Create the controls
@@ -57,7 +57,6 @@ sub new {
 
 	return $self;
 }
-
 
 #
 # A private method that returns a hash of regex groups along with their meaning
@@ -168,8 +167,8 @@ sub _create_controls {
 	# Regex text field
 	my $regex_label = Wx::StaticText->new( $self, -1, Wx::gettext('&Regular expression:') );
 	$self->{regex} = Wx::TextCtrl->new(
-		$self, -1, '', Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		Wx::wxRE_MULTILINE | Wx::wxWANTS_CHARS # Otherwise arrows will not work on win32
+		$self, -1, '', Wx::DefaultPosition, Wx::DefaultSize,
+		Wx::RE_MULTILINE | Wx::WANTS_CHARS # Otherwise arrows will not work on win32
 	);
 
 	my %regex_groups = $self->_regex_groups;
@@ -218,8 +217,8 @@ sub _create_controls {
 
 	# Describe-the-regex text field
 	$self->{description_text} = Wx::TextCtrl->new(
-		$self, -1, '', Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		Wx::wxTE_MULTILINE | Wx::wxNO_FULL_REPAINT_ON_RESIZE
+		$self, -1, '', Wx::DefaultPosition, Wx::DefaultSize,
+		Wx::TE_MULTILINE | Wx::NO_FULL_REPAINT_ON_RESIZE
 	);
 
 	# Description is hidden by default
@@ -228,15 +227,15 @@ sub _create_controls {
 	# Original input text field
 	my $original_label = Wx::StaticText->new( $self, -1, Wx::gettext('&Original text:') );
 	$self->{original_text} = Wx::TextCtrl->new(
-		$self, -1, '', Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		Wx::wxTE_MULTILINE | Wx::wxNO_FULL_REPAINT_ON_RESIZE
+		$self, -1, '', Wx::DefaultPosition, Wx::DefaultSize,
+		Wx::TE_MULTILINE | Wx::NO_FULL_REPAINT_ON_RESIZE
 	);
 
 	# Matched readonly text field
 	my $matched_label = Wx::StaticText->new( $self, -1, Wx::gettext('Matched text:') );
 	$self->{matched_text} = Wx::RichTextCtrl->new(
-		$self, -1, '', Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		Wx::wxRE_MULTILINE | Wx::wxRE_READONLY | Wx::wxWANTS_CHARS # Otherwise arrows will not work on win32
+		$self, -1, '', Wx::DefaultPosition, Wx::DefaultSize,
+		Wx::RE_MULTILINE | Wx::RE_READONLY | Wx::WANTS_CHARS # Otherwise arrows will not work on win32
 	);
 
 	# Toggle the visibility of the replace (substitution) fields
@@ -249,8 +248,8 @@ sub _create_controls {
 	# Replace regex text field
 	$self->{replace_label} = Wx::StaticText->new( $self, -1, Wx::gettext('&Replace text with:') );
 	$self->{replace_text} = Wx::TextCtrl->new(
-		$self, -1, '', Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		Wx::wxTE_MULTILINE | Wx::wxNO_FULL_REPAINT_ON_RESIZE
+		$self, -1, '', Wx::DefaultPosition, Wx::DefaultSize,
+		Wx::TE_MULTILINE | Wx::NO_FULL_REPAINT_ON_RESIZE
 	);
 
 	$self->{replace_label}->Hide;
@@ -259,27 +258,27 @@ sub _create_controls {
 	# Result from replace text field
 	$self->{result_label} = Wx::StaticText->new( $self, -1, Wx::gettext('&Result from replace:') );
 	$self->{result_text} = Wx::RichTextCtrl->new(
-		$self, -1, '', Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		Wx::wxRE_MULTILINE | Wx::wxRE_READONLY | Wx::wxWANTS_CHARS # Otherwise arrows will not work on win32
+		$self, -1, '', Wx::DefaultPosition, Wx::DefaultSize,
+		Wx::RE_MULTILINE | Wx::RE_READONLY | Wx::WANTS_CHARS # otherwise arrows will not work on win32
 	);
 
 	$self->{result_label}->Hide;
 	$self->{result_text}->Hide;
 
-	# Insert regex into current document button_name
+	# Insert regex into current document
 	$self->{insert_button} = Wx::Button->new(
 		$self, -1, Wx::gettext('Insert'),
 	);
 
 	# Close button
 	$self->{close_button} = Wx::Button->new(
-		$self, Wx::wxID_CANCEL, Wx::gettext('&Close'),
+		$self, Wx::ID_CANCEL, Wx::gettext('&Close'),
 	);
 
-	my $buttons = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
+	my $buttons = Wx::BoxSizer->new(Wx::HORIZONTAL);
 	$buttons->AddStretchSpacer;
-	$buttons->Add( $self->{insert_button}, 0, Wx::wxALL, 1 );
-	$buttons->Add( $self->{close_button},  0, Wx::wxALL, 1 );
+	$buttons->Add( $self->{insert_button}, 0, Wx::ALL, 1 );
+	$buttons->Add( $self->{close_button},  0, Wx::ALL, 1 );
 	$buttons->AddStretchSpacer;
 
 	# Modifiers
@@ -296,55 +295,55 @@ sub _create_controls {
 
 	# Dialog Layout
 
-	my $modifiers = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
+	my $modifiers = Wx::BoxSizer->new(Wx::HORIZONTAL);
 	$modifiers->AddStretchSpacer;
-	$modifiers->Add( $self->{ignore_case}, 0, Wx::wxALL, 1 );
-	$modifiers->Add( $self->{single_line}, 0, Wx::wxALL, 1 );
-	$modifiers->Add( $self->{multi_line},  0, Wx::wxALL, 1 );
-	$modifiers->Add( $self->{extended},    0, Wx::wxALL, 1 );
-	$modifiers->Add( $self->{global},      0, Wx::wxALL, 1 );
+	$modifiers->Add( $self->{ignore_case}, 0, Wx::ALL, 1 );
+	$modifiers->Add( $self->{single_line}, 0, Wx::ALL, 1 );
+	$modifiers->Add( $self->{multi_line},  0, Wx::ALL, 1 );
+	$modifiers->Add( $self->{extended},    0, Wx::ALL, 1 );
+	$modifiers->Add( $self->{global},      0, Wx::ALL, 1 );
 
 	$modifiers->AddStretchSpacer;
 
-	my $regex = Wx::BoxSizer->new(Wx::wxVERTICAL);
-	$regex->Add( $self->{regex}, 1, Wx::wxALL | Wx::wxEXPAND, 1 );
+	my $regex = Wx::BoxSizer->new(Wx::VERTICAL);
+	$regex->Add( $self->{regex}, 1, Wx::ALL | Wx::EXPAND, 1 );
 
-	my $regex_groups = Wx::BoxSizer->new(Wx::wxVERTICAL);
+	my $regex_groups = Wx::BoxSizer->new(Wx::VERTICAL);
 	foreach my $code ( sort keys %regex_groups ) {
 		my $button_name = $code . '_button';
-		$regex_groups->Add( $self->{$button_name}, 0, Wx::wxEXPAND, 1 );
+		$regex_groups->Add( $self->{$button_name}, 0, Wx::EXPAND, 1 );
 	}
 
-	my $combined = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$combined->Add( $regex,        2, Wx::wxALL | Wx::wxEXPAND, 0 );
-	$combined->Add( $regex_groups, 0, Wx::wxALL | Wx::wxEXPAND, 0 );
+	my $combined = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$combined->Add( $regex,        2, Wx::ALL | Wx::EXPAND, 0 );
+	$combined->Add( $regex_groups, 0, Wx::ALL | Wx::EXPAND, 0 );
 
 	# Vertical layout of the left hand side
-	my $left = Wx::BoxSizer->new(Wx::wxVERTICAL);
-	$left->Add( $modifiers, 0, Wx::wxALL | Wx::wxEXPAND, 2 );
+	my $left = Wx::BoxSizer->new(Wx::VERTICAL);
+	$left->Add( $modifiers, 0, Wx::ALL | Wx::EXPAND, 2 );
 	$left->AddSpacer(5);
-	$left->Add( $regex_label, 0, Wx::wxALL | Wx::wxEXPAND, 1 );
-	$left->Add( $combined,    0, Wx::wxALL | Wx::wxEXPAND, 2 );
+	$left->Add( $regex_label, 0, Wx::ALL | Wx::EXPAND, 1 );
+	$left->Add( $combined,    0, Wx::ALL | Wx::EXPAND, 2 );
 
-	$left->Add( $self->{description_checkbox}, 0, Wx::wxALL | Wx::wxEXPAND, 1 );
-	$left->Add( $self->{description_text},     2, Wx::wxALL | Wx::wxEXPAND, 1 );
+	$left->Add( $self->{description_checkbox}, 0, Wx::ALL | Wx::EXPAND, 1 );
+	$left->Add( $self->{description_text},     2, Wx::ALL | Wx::EXPAND, 1 );
 
-	$left->Add( $original_label,        0, Wx::wxALL | Wx::wxEXPAND, 1 );
-	$left->Add( $self->{original_text}, 1, Wx::wxALL | Wx::wxEXPAND, 1 );
-	$left->Add( $matched_label,         0, Wx::wxALL | Wx::wxEXPAND, 1 );
-	$left->Add( $self->{matched_text},  1, Wx::wxALL | Wx::wxEXPAND, 1 );
+	$left->Add( $original_label,        0, Wx::ALL | Wx::EXPAND, 1 );
+	$left->Add( $self->{original_text}, 1, Wx::ALL | Wx::EXPAND, 1 );
+	$left->Add( $matched_label,         0, Wx::ALL | Wx::EXPAND, 1 );
+	$left->Add( $self->{matched_text},  1, Wx::ALL | Wx::EXPAND, 1 );
 
-	$left->Add( $self->{replace_checkbox}, 0, Wx::wxALL | Wx::wxEXPAND, 1 );
-	$left->Add( $self->{replace_label},    0, Wx::wxALL | Wx::wxEXPAND, 1 );
-	$left->Add( $self->{replace_text},     1, Wx::wxALL | Wx::wxEXPAND, 1 );
-	$left->Add( $self->{result_label},     0, Wx::wxALL | Wx::wxEXPAND, 1 );
-	$left->Add( $self->{result_text},      1, Wx::wxALL | Wx::wxEXPAND, 1 );
+	$left->Add( $self->{replace_checkbox}, 0, Wx::ALL | Wx::EXPAND, 1 );
+	$left->Add( $self->{replace_label},    0, Wx::ALL | Wx::EXPAND, 1 );
+	$left->Add( $self->{replace_text},     1, Wx::ALL | Wx::EXPAND, 1 );
+	$left->Add( $self->{result_label},     0, Wx::ALL | Wx::EXPAND, 1 );
+	$left->Add( $self->{result_text},      1, Wx::ALL | Wx::EXPAND, 1 );
 
 	$left->AddSpacer(5);
-	$left->Add( $buttons, 0, Wx::wxALL | Wx::wxEXPAND, 1 );
+	$left->Add( $buttons, 0, Wx::ALL | Wx::EXPAND, 1 );
 
 	# Main sizer
-	$sizer->Add( $left, 1, Wx::wxALL | Wx::wxEXPAND, 5 );
+	$sizer->Add( $left, 1, Wx::ALL | Wx::EXPAND, 5 );
 }
 
 sub _bind_events {
@@ -359,7 +358,7 @@ sub _bind_events {
 		$self,
 		sub {
 			my ($key_event) = $_[1];
-			$self->Hide if $key_event->GetKeyCode == Wx::WXK_ESCAPE;
+			$self->Hide if $key_event->GetKeyCode == Wx::K_ESCAPE;
 			return;
 		}
 	);
@@ -421,7 +420,7 @@ sub _bind_events {
 		$self->{matched_text},
 		sub {
 			my ($key_event) = $_[1];
-			$self->Hide if $key_event->GetKeyCode == Wx::WXK_ESCAPE;
+			$self->Hide if $key_event->GetKeyCode == Wx::K_ESCAPE;
 			return;
 		}
 	);
@@ -430,7 +429,7 @@ sub _bind_events {
 		$self->{result_text},
 		sub {
 			my ($key_event) = $_[1];
-			$self->Hide if $key_event->GetKeyCode == Wx::WXK_ESCAPE;
+			$self->Hide if $key_event->GetKeyCode == Wx::K_ESCAPE;
 			return;
 		}
 	);
@@ -454,7 +453,11 @@ sub _insert_regex {
 	my ($modifiers) = $self->_get_modifier_settings;
 
 	my $editor = $self->current->editor or return;
-	$editor->InsertText( $editor->GetCurrentPos, "s/$match_part/$replace_part/$modifiers" );
+	if ( $self->{replace_checkbox}->IsChecked ) {
+		$editor->InsertText( $editor->GetCurrentPos, "s/$match_part/$replace_part/$modifiers" );
+	} else {
+		$editor->InsertText( $editor->GetCurrentPos, "m/$match_part/$modifiers" );
+	}
 
 	return;
 }
@@ -495,7 +498,6 @@ sub _modifiers {
 sub _modifier_keys {
 	return qw{ ignore_case single_line multi_line extended	global};
 }
-
 
 # -- public methods
 
@@ -645,7 +647,7 @@ sub run {
 
 	# TODO what about white space only regexes?
 	if ( $regex eq '' ) {
-		$self->{matched_text}->BeginTextColour(Wx::wxRED);
+		$self->{matched_text}->BeginTextColour(Wx::RED);
 		$self->{matched_text}->SetValue( Wx::gettext('Empty regex') );
 		$self->{matched_text}->EndTextColour;
 		return;
@@ -655,7 +657,7 @@ sub run {
 
 	$self->{matched_text}->Clear;
 
-	$self->{matched_text}->BeginTextColour(Wx::wxBLACK);
+	$self->{matched_text}->BeginTextColour(Wx::BLACK);
 
 	my $match;
 	my $match_start;
@@ -671,7 +673,7 @@ sub run {
 	my $code = "\$result = \$original_text =~ /\$regex/$active; (\$match_start, \$match_end) = (\$-[0], \$+[0])";
 	eval $code;
 	if ($@) {
-		$self->{matched_text}->BeginTextColour(Wx::wxRED);
+		$self->{matched_text}->BeginTextColour(Wx::RED);
 		$self->{matched_text}->SetValue( sprintf( Wx::gettext('Match failure in %s:  %s'), $regex, $@ ) );
 		$self->{matched_text}->EndTextColour;
 		return;
@@ -682,7 +684,7 @@ sub run {
 	}
 
 	if ($warning) {
-		$self->{matched_text}->BeginTextColour(Wx::wxRED);
+		$self->{matched_text}->BeginTextColour(Wx::RED);
 		$self->{matched_text}->SetValue( sprintf( Wx::gettext('Match warning in %s:  %s'), $regex, $warning ) );
 		$self->{matched_text}->EndTextColour;
 		return;
@@ -690,7 +692,7 @@ sub run {
 
 	if ( defined $match ) {
 		if ( $match_start == $match_end ) {
-			$self->{matched_text}->BeginTextColour(Wx::wxRED);
+			$self->{matched_text}->BeginTextColour(Wx::RED);
 			$self->{matched_text}
 				->SetValue( sprintf( Wx::gettext('Match with 0 width at character %s'), $match_start ) );
 			$self->{matched_text}->EndTextColour;
@@ -699,7 +701,7 @@ sub run {
 			my $pos = 0;
 			foreach my $char (@chars) {
 				if ( $pos == $match_start ) {
-					$self->{matched_text}->BeginTextColour(Wx::wxRED);
+					$self->{matched_text}->BeginTextColour(Wx::BLUE);
 					$self->{matched_text}->BeginUnderline;
 				} elsif ( $pos == $match_end ) {
 					$self->{matched_text}->EndTextColour;
@@ -710,12 +712,11 @@ sub run {
 			}
 		}
 	} else {
-		$self->{matched_text}->BeginTextColour(Wx::wxRED);
+		$self->{matched_text}->BeginTextColour(Wx::RED);
 		$self->{matched_text}->SetValue( Wx::gettext('No match') );
 		$self->{matched_text}->EndTextColour;
 	}
 	$self->{matched_text}->EndTextColour;
-
 
 	$self->replace;
 
@@ -726,13 +727,13 @@ sub run {
 	#	foreach my $element (@elements) {
 	#		my $class_name = $element->element->class;
 	#		if ($class_name eq 'PPIx::Regexp::Token::CharClass::Simple') {
-	#			$self->{regex}->BeginTextColour(Wx::wxRED);
+	#			$self->{regex}->BeginTextColour(Wx::RED);
 	#		} elsif( $class_name eq 'PPIx::Regexp::Token::Quantifier') {
-	#			$self->{regex}->BeginTextColour(Wx::wxBLUE);
+	#			$self->{regex}->BeginTextColour(Wx::BLUE);
 	#		} elsif( $class_name eq 'PPIx::Regexp::Token::Operator') {
-	#			$self->{regex}->BeginTextColour(Wx::wxLIGHT_GREY);
+	#			$self->{regex}->BeginTextColour(Wx::LIGHT_GREY);
 	#		} elsif( $class_name eq 'PPIx::Regexp::Structure::Capture') {
-	#			$self->{regex}->BeginTextColour(Wx::wxCYAN);
+	#			$self->{regex}->BeginTextColour(Wx::CYAN);
 	#		}
 	#		$self->{regex}->AppendText($element->content);
 	#	$self->{regex}->EndTextColour;
@@ -756,7 +757,7 @@ sub replace {
 	my $code = "\$result_text =~ s{\$regex}{$replace}$active";
 	eval $code;
 	if ($@) {
-		$self->{result_text}->BeginTextColour(Wx::wxRED);
+		$self->{result_text}->BeginTextColour(Wx::RED);
 		$self->{result_text}->AppendText( sprintf( Wx::gettext('Replace failure in %s:  %s'), $regex, $@ ) );
 		$self->{result_text}->EndTextColour;
 		return;
@@ -787,14 +788,12 @@ Padre::Wx::Dialog::RegexEditor - dialog to make it easy to create a regular expr
 
 =head1 DESCRIPTION
 
-
 The C<Regex Editor> provides an interface to easily create regular
 expressions used in Perl.
 
 The user can insert a regular expression (the surrounding C</> characters are not
 needed) and a text. The C<Regex Editor> will automatically display the matching
 text in the bottom right window.
-
 
 At the top of the window the user can select any of the four
 regular expression modifiers:
@@ -833,7 +832,7 @@ English explanation of the regular expression
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl 5 itself.

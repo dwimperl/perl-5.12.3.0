@@ -43,7 +43,7 @@ use Padre::Util           ();
 use Padre::Wx             ();
 use Padre::Wx::Icon       ();
 use Padre::Wx::Role::Main ();
-use Padre::MimeTypes      ();
+use Padre::MIME           ();
 
 use Class::XSAccessor {
 	accessors => {
@@ -53,7 +53,7 @@ use Class::XSAccessor {
 	}
 };
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Wx::StatusBar
@@ -62,12 +62,15 @@ our @ISA     = qw{
 use constant {
 	FILENAME    => 0,
 	TASKLOAD    => 1,
-	HIGHLIGHTER => 2,
-	MIMETYPE    => 3,
-	NEWLINE     => 4,
-	POSTRING    => 5,
-	RDONLY      => 6,
+	MIMETYPE    => 2,
+	NEWLINE     => 3,
+	POSTRING    => 4,
+	RDONLY      => 5,
 };
+
+
+
+
 
 #####################################################################
 
@@ -92,13 +95,13 @@ sub new {
 	my $self = $class->SUPER::new(
 		$main,
 		-1,
-		Wx::wxST_SIZEGRIP | Wx::wxFULL_REPAINT_ON_RESIZE
+		Wx::ST_SIZEGRIP | Wx::FULL_REPAINT_ON_RESIZE
 	);
 
 	$self->{main} = $main;
 
 	# create the static bitmap that will hold the task load status
-	my $sbmp = Wx::StaticBitmap->new( $self, -1, Wx::wxNullBitmap );
+	my $sbmp = Wx::StaticBitmap->new( $self, -1, Wx::NullBitmap );
 	$self->_task_sbmp($sbmp);
 	$self->_task_status('foobar'); # init status to sthg defined
 	                               # Wx::Event::EVT_LEFT_DOWN(
@@ -110,7 +113,7 @@ sub new {
 	                               # );
 
 	# Set up the fields
-	$self->SetFieldsCount(7);
+	$self->SetFieldsCount(6);
 
 	#$self->SetStatusWidths( -1, 0, 100, 100, 50, 100 );
 
@@ -136,7 +139,6 @@ in all fields.
 sub clear {
 	my $self = shift;
 	$self->SetStatusText( "", FILENAME );
-	$self->SetStatusText( "", HIGHLIGHTER );
 	$self->SetStatusText( "", MIMETYPE );
 	$self->SetStatusText( "", NEWLINE );
 	$self->SetStatusText( "", POSTRING );
@@ -180,38 +182,22 @@ sub refresh {
 
 	# Prepare the various strings that form the status bar
 	my $main     = $self->{main};
-	my $notebook = $current->notebook;
 	my $document = $current->document;
 	my $newline  = $document->newline_type || Padre::Constant::NEWLINE;
-	my $pageid   = $notebook->GetSelection;
-	my $old      = $notebook->GetPageText($pageid);
-	my $filename = $document->filename || '';
-	my $text =
-		$filename
-		? File::Basename::basename($filename)
-		: substr( $old, 1 );
 	$self->{_last_editor}   = $editor;
 	$self->{_last_modified} = $editor->GetModify;
-	my $modified       = $self->{_last_modified} ? '*' : ' ';
-	my $title          = $modified . $text;
-	my $position       = $editor->GetCurrentPos;
-	my $line           = $editor->GetCurrentLine;
-	my $start          = $editor->PositionFromLine($line);
-	my $lines          = $editor->GetLineCount;
-	my $char           = $position - $start;
-	my $width          = $self->GetCharWidth;
-	my $highlighter    = Padre::MimeTypes->get_highlighter_name( $document->highlighter );
-	my $mime_type_name = Padre::MimeTypes->get_mime_type_name( $document->mimetype );
-	my $percent        = int( 100 * $line / $lines );
-
-	# Set some defaults to advoid "use of uninittialized value" - messages:
-	$mime_type_name = '???' if !defined($mime_type_name);
-
-	#my $postring  = Wx::gettext('L:') . ( $line + 1  ) . ' ' . Wx::gettext('Ch:') . "$char $percent%";
-	my $format   = '%' . length( $lines + 1 ) . 's,%-3s %3s%%';
-	my $length   = length( $lines + 1 ) + 8;
-	my $postring = sprintf( $format, ( $line + 1 ), $char, $percent );
-	my $rdstatus = $self->is_read_only;
+	my $position  = $editor->GetCurrentPos;
+	my $line      = $editor->GetCurrentLine;
+	my $start     = $editor->PositionFromLine($line);
+	my $lines     = $editor->GetLineCount;
+	my $char      = $position - $start;
+	my $width     = $self->GetCharWidth;
+	my $percent   = int( 100 * $line / $lines );
+	my $mime_name = Wx::gettext( $document->mime->name );
+	my $format    = '%' . length( $lines + 1 ) . 's,%-3s %3s%%';
+	my $length    = length( $lines + 1 ) + 8;
+	my $postring  = sprintf( $format, ( $line + 1 ), $char, $percent );
+	my $rdstatus  = $self->is_read_only;
 
 	# update task load status
 	$self->update_task_status;
@@ -228,16 +214,14 @@ sub refresh {
 		my $status = $main->process_template_frequent( $self->{_template_} );
 		$self->SetStatusText( $status, FILENAME );
 	}
-	$self->SetStatusText( $highlighter,    HIGHLIGHTER );
-	$self->SetStatusText( $mime_type_name, MIMETYPE );
-	$self->SetStatusText( $newline,        NEWLINE );
-	$self->SetStatusText( $postring,       POSTRING );
-	$self->SetStatusText( $rdstatus,       RDONLY );
+	$self->SetStatusText( $mime_name, MIMETYPE );
+	$self->SetStatusText( $newline,   NEWLINE  );
+	$self->SetStatusText( $postring,  POSTRING );
+	$self->SetStatusText( $rdstatus,  RDONLY   );
 	$self->SetStatusWidths(
 		-1,
 		$self->_task_width,
-		( length($highlighter) + 2 ) * $width,
-		( length($mime_type_name) + 2 ) * $width,
+		( length($mime_name) + 2 ) * $width,
 		( length($newline) + 2 ) * $width,
 		( $length + 2 ) * $width,
 		( length($rdstatus) + 2 ) * $width,
@@ -245,14 +229,6 @@ sub refresh {
 
 	# Move the static bitmap holding the task load status
 	$self->_move_bitmap;
-
-	# Fixed ticket #190: Massive GDI object leakages
-	# http://padre.perlide.org/ticket/190
-	# Please remember to call SetPageText once per the same text
-	# This still leaks but far less slowly (just on undo)
-	if ( $old ne $title ) {
-		$notebook->SetPageText( $pageid, $title );
-	}
 
 	return;
 }
@@ -280,7 +256,7 @@ sub update_task_status {
 	# If we're idling, just hide the icon in the statusbar
 	if ( $status eq 'idle' ) {
 		$sbmp->Hide;
-		$sbmp->SetBitmap(Wx::wxNullBitmap);
+		$sbmp->SetBitmap(Wx::NullBitmap);
 		$sbmp->SetToolTip('');
 		$self->_task_width(0);
 		return;
@@ -447,7 +423,7 @@ L<http://www.famfamfam.com/lab/icons/silk/>.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -457,7 +433,7 @@ LICENSE file included with this module.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

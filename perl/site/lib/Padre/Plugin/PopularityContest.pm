@@ -118,7 +118,7 @@ use Scalar::Util    ();
 use Padre::Plugin   ();
 use Padre::Constant ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Plugin';
 
 # Track the number of times actions are used
@@ -133,11 +133,11 @@ our %ACTION = ();
 
 sub padre_interfaces {
 	return (
-		'Padre::Plugin'           => 0.66,
-		'Padre::Task'             => 0.66,
-		'Padre::Task::LWP'        => 0.66,
-		'Padre::Util::SVN'        => 0.66,
-		'Padre::Wx::Dialog::Text' => 0.66,
+		'Padre::Plugin'           => '0.91',
+		'Padre::Task'             => '0.91',
+		'Padre::Task::LWP'        => '0.91',
+		'Padre::Util::SVN'        => '0.91',
+		'Padre::Wx::Dialog::Text' => '0.91',
 	);
 }
 
@@ -339,7 +339,7 @@ See the support section of the main L<Padre> module.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 =head1 LICENSE
 
@@ -348,7 +348,7 @@ modify it under the same terms as Perl 5 itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

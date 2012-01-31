@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Padre::Wx::FBP::FindInFiles ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::FBP::FindInFiles
 };
@@ -20,14 +20,6 @@ our @ISA     = qw{
 sub new {
 	my $class = shift;
 	my $self  = $class->SUPER::new(@_);
-
-	# Default the search directory to the root of the current project
-	my $project = $self->current->project;
-	if ( defined $project ) {
-		$self->find_directory->SetValue( $project->root );
-	}
-
-	# Prepare to be shown
 	$self->CenterOnParent;
 
 	Wx::Event::EVT_KEY_UP(
@@ -64,7 +56,7 @@ sub directory {
 	$dialog->Destroy;
 
 	# Update the dialog
-	unless ( $result == Wx::wxID_CANCEL ) {
+	unless ( $result == Wx::ID_CANCEL ) {
 		$self->find_directory->SetValue( $dialog->GetPath );
 	}
 
@@ -80,43 +72,54 @@ sub directory {
 
 sub run {
 	my $self    = shift;
+	my $main    = $self->main;
+	my $find    = $self->find_term;
 	my $current = $self->current;
 
-	# Clear
-	$self->{cycle_ctrl_f} = 0;
-
-	# Do they have a specific search term in mind?
-	my $text = $current->text;
-	$text = '' if $text =~ /\n/;
-
 	# Clear out and reset the search term box
-	$self->find_term->refresh($text);
-	$self->find_term->SetFocus;
+	if ( $main->has_findfast and $main->findfast->IsShown ) {
+		$find->refresh( $main->findfast->find_term->GetValue );
+		$main->show_findfast(0);
+	} else {
+		$find->refresh( $current->text );
+	}
+
+	# Default the search directory to the root of the current project
+	my $project = $current->project;
+	if ( defined $project ) {
+		$self->find_directory->SetValue( $project->root );
+	}
 
 	# Update the user interface
 	$self->refresh;
+	$find->SetFocus;
 
 	# Show the dialog
 	my $result = $self->ShowModal;
-
-	if ( $result == Wx::wxID_CANCEL ) {
+	if ( $result == Wx::ID_CANCEL ) {
 
 		# As we leave the Find dialog, return the user to the current editor
 		# window so they don't need to click it.
-		my $editor = $current->editor;
-		$editor->SetFocus if $editor;
-
+		$main->editor_focus;
 		return;
 	}
 
-	# Run the search in the Find in Files tool
-	$self->main->show_findinfiles;
-	$self->main->findinfiles->search(
-		root   => $self->find_directory->SaveValue,
+	# Save user input for next time
+	my $lock = $main->lock('DB');
+	$self->find_term->SaveValue;
+	$self->find_directory->SaveValue;
+
+	# Run the search in the Find in Files view
+	$main->show_foundinfiles;
+	$main->foundinfiles->search(
 		search => $self->as_search,
+		root   => $self->find_directory->GetValue,
+		mime   => $self->find_types->GetClientData(
+			$self->find_types->GetSelection
+		),
 	);
 
-	return;
+	$main->editor_focus;
 }
 
 # Makes sure the find button is only enabled when the field
@@ -131,7 +134,7 @@ sub as_search {
 	my $self = shift;
 	require Padre::Search;
 	Padre::Search->new(
-		find_term  => $self->find_term->SaveValue,
+		find_term  => $self->find_term->GetValue,
 		find_case  => $self->find_case->GetValue,
 		find_regex => $self->find_regex->GetValue,
 	);
@@ -150,8 +153,6 @@ sub key_up {
 	return unless $mod == 2;
 	return unless $code == 70;
 
-	$self->{cycle_ctrl_f} = 1;
-
 	$self->Hide;
 
 	return;
@@ -159,7 +160,7 @@ sub key_up {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

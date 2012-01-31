@@ -7,11 +7,12 @@ use Padre::Util           ();
 use Padre::DB             ();
 use Padre::Wx             ();
 use Padre::Wx::Icon       ();
+use Padre::Wx::HtmlWindow ();
 use Padre::Wx::Role::Main ();
 use Padre::Logger;
 
 # package exports and version
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Wx::Dialog
@@ -38,9 +39,9 @@ sub new {
 		$main,
 		-1,
 		Wx::gettext('Quick Menu Access'),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxDEFAULT_FRAME_STYLE | Wx::wxTAB_TRAVERSAL,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::DEFAULT_FRAME_STYLE | Wx::TAB_TRAVERSAL,
 	);
 
 	# Dialog's icon as is the same as Padre
@@ -64,8 +65,9 @@ sub _on_ok_button_clicked {
 
 	# Open the selected menu item if the user pressed OK
 	my $selection = $self->_list->GetSelection;
+	return if $selection == Wx::NOT_FOUND;
 	my $action    = $self->_list->GetClientData($selection);
-	$self->Destroy;
+	$self->Hide;
 	my %actions     = %{ Padre::ide->actions };
 	my $menu_action = $actions{ $action->{name} };
 	if ($menu_action) {
@@ -84,14 +86,8 @@ sub _on_ok_button_clicked {
 
 			eval { &$event($main); };
 			if ($@) {
-				my $error = $@;
-				Wx::MessageBox(
-					sprintf( Wx::gettext('Error while trying to perform Padre action: %s'), $error ),
-					Wx::gettext('Error'),
-					Wx::wxOK,
-					$main,
-				);
-				TRACE("Error while trying to perform Padre action: $error") if DEBUG;
+				$main->error(sprintf( Wx::gettext('Error while trying to perform Padre action: %s'), $@ ));
+				TRACE("Error while trying to perform Padre action: $@") if DEBUG;
 			} else {
 
 				# And insert a recently used tuple if it is not found
@@ -124,7 +120,7 @@ sub _create {
 	my $self = shift;
 
 	# create sizer that will host all controls
-	my $sizer = Wx::BoxSizer->new(Wx::wxVERTICAL);
+	my $sizer = Wx::BoxSizer->new(Wx::VERTICAL);
 	$self->_sizer($sizer);
 
 	# create the controls
@@ -148,20 +144,20 @@ sub _create_buttons {
 	my $sizer = $self->_sizer;
 
 	$self->{ok_button} = Wx::Button->new(
-		$self, Wx::wxID_OK, Wx::gettext('&OK'),
+		$self, Wx::ID_OK, Wx::gettext('&OK'),
 	);
 	$self->{ok_button}->SetDefault;
 	$self->{cancel_button} = Wx::Button->new(
-		$self, Wx::wxID_CANCEL, Wx::gettext('&Cancel'),
+		$self, Wx::ID_CANCEL, Wx::gettext('&Cancel'),
 	);
 
-	my $buttons = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
+	my $buttons = Wx::BoxSizer->new(Wx::HORIZONTAL);
 	$buttons->AddStretchSpacer;
-	$buttons->Add( $self->{ok_button},     0, Wx::wxALL | Wx::wxEXPAND, 5 );
-	$buttons->Add( $self->{cancel_button}, 0, Wx::wxALL | Wx::wxEXPAND, 5 );
-	$sizer->Add( $buttons, 0, Wx::wxALL | Wx::wxEXPAND | Wx::wxALIGN_CENTER, 5 );
+	$buttons->Add( $self->{ok_button},     0, Wx::ALL | Wx::EXPAND, 5 );
+	$buttons->Add( $self->{cancel_button}, 0, Wx::ALL | Wx::EXPAND, 5 );
+	$sizer->Add( $buttons, 0, Wx::ALL | Wx::EXPAND | Wx::ALIGN_CENTER, 5 );
 
-	Wx::Event::EVT_BUTTON( $self, Wx::wxID_OK, \&_on_ok_button_clicked );
+	Wx::Event::EVT_BUTTON( $self, Wx::ID_OK, \&_on_ok_button_clicked );
 }
 
 #
@@ -184,29 +180,28 @@ sub _create_controls {
 	);
 	$self->_list(
 		Wx::ListBox->new(
-			$self, -1, Wx::wxDefaultPosition, Wx::wxDefaultSize, [],
-			Wx::wxLB_SINGLE
+			$self, -1, Wx::DefaultPosition, Wx::DefaultSize, [],
+			Wx::LB_SINGLE
 		)
 	);
 
 	# Shows how many items are selected and information about what is selected
-	require Padre::Wx::HtmlWindow;
 	$self->_status_text(
 		Padre::Wx::HtmlWindow->new(
 			$self,
 			-1,
-			Wx::wxDefaultPosition,
+			Wx::DefaultPosition,
 			[ -1, 70 ],
-			Wx::wxBORDER_STATIC
+			Wx::BORDER_STATIC
 		)
 	);
 
 	$self->_sizer->AddSpacer(10);
-	$self->_sizer->Add( $search_label,       0, Wx::wxALL | Wx::wxEXPAND, 2 );
-	$self->_sizer->Add( $self->_search_text, 0, Wx::wxALL | Wx::wxEXPAND, 2 );
-	$self->_sizer->Add( $matches_label,      0, Wx::wxALL | Wx::wxEXPAND, 2 );
-	$self->_sizer->Add( $self->_list,        1, Wx::wxALL | Wx::wxEXPAND, 2 );
-	$self->_sizer->Add( $self->_status_text, 0, Wx::wxALL | Wx::wxEXPAND, 2 );
+	$self->_sizer->Add( $search_label,       0, Wx::ALL | Wx::EXPAND, 2 );
+	$self->_sizer->Add( $self->_search_text, 0, Wx::ALL | Wx::EXPAND, 2 );
+	$self->_sizer->Add( $matches_label,      0, Wx::ALL | Wx::EXPAND, 2 );
+	$self->_sizer->Add( $self->_list,        1, Wx::ALL | Wx::EXPAND, 2 );
+	$self->_sizer->Add( $self->_status_text, 0, Wx::ALL | Wx::EXPAND, 2 );
 
 	$self->_setup_events;
 
@@ -227,10 +222,10 @@ sub _setup_events {
 			my $code  = $event->GetKeyCode;
 
 			$self->_list->SetFocus
-				if ( $code == Wx::WXK_DOWN )
-				or ( $code == Wx::WXK_UP )
-				or ( $code == Wx::WXK_NUMPAD_PAGEDOWN )
-				or ( $code == Wx::WXK_PAGEDOWN );
+				if ( $code == Wx::K_DOWN )
+				or ( $code == Wx::K_UP )
+				or ( $code == Wx::K_NUMPAD_PAGEDOWN )
+				or ( $code == Wx::K_PAGEDOWN );
 
 			$event->Skip(1);
 		}
@@ -255,7 +250,7 @@ sub _setup_events {
 		$self->_list,
 		sub {
 			my $selection = $self->_list->GetSelection;
-			if ( $selection != Wx::wxNOT_FOUND ) {
+			if ( $selection != Wx::NOT_FOUND ) {
 				my $action = $self->_list->GetClientData($selection);
 				$self->_status_text->SetPage( $self->_label( $action->{value}, $action->{name} ) );
 			}
@@ -466,14 +461,14 @@ Ahmad M. Zawawi C<< <ahmad.zawawi at gmail.com> >>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

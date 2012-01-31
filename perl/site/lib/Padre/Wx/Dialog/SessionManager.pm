@@ -9,7 +9,7 @@ use Padre::Wx       ();
 use Padre::Wx::Icon ();
 use Padre::Current  ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Wx::Dialog';
 
 use Class::XSAccessor {
@@ -35,9 +35,9 @@ sub new {
 		$parent,
 		-1,
 		Wx::gettext('Session Manager'),
-		Wx::wxDefaultPosition,
+		Wx::DefaultPosition,
 		Wx::Size->new( 480, 300 ),
-		Wx::wxDEFAULT_FRAME_STYLE | Wx::wxTAB_TRAVERSAL,
+		Wx::DEFAULT_FRAME_STYLE | Wx::TAB_TRAVERSAL,
 	);
 
 	$self->SetIcon(Padre::Wx::Icon::PADRE);
@@ -194,7 +194,7 @@ sub _create {
 	my $self = shift;
 
 	# create vertical box that will host all controls
-	my $vbox = Wx::BoxSizer->new(Wx::wxVERTICAL);
+	my $vbox = Wx::BoxSizer->new(Wx::VERTICAL);
 	$self->SetSizer($vbox);
 	$self->CenterOnParent;
 
@@ -224,15 +224,15 @@ sub _create_list {
 		$self, -1,
 		Wx::gettext('List of sessions')
 	);
-	$vbox->Add( $label, 0, Wx::wxALL, 5 );
+	$vbox->Add( $label, 0, Wx::ALL, 5 );
 
 	# create list
 	my $list = Wx::ListView->new(
 		$self,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxLC_REPORT | Wx::wxLC_SINGLE_SEL,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::LC_REPORT | Wx::LC_SINGLE_SEL,
 	);
 	$list->InsertColumn( 0, Wx::gettext('Name') );
 	$list->InsertColumn( 1, Wx::gettext('Description') );
@@ -245,7 +245,7 @@ sub _create_list {
 	Wx::Event::EVT_LIST_COL_CLICK( $self, $list, \&_on_list_col_click );
 
 	# pack the list
-	$vbox->Add( $list, 1, Wx::wxALL | Wx::wxEXPAND, 5 );
+	$vbox->Add( $list, 1, Wx::ALL | Wx::EXPAND, 5 );
 }
 
 #
@@ -261,8 +261,8 @@ sub _create_options {
 	my $config = Padre->ide->config;
 
 	# the hbox
-	my $hbox = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$self->_vbox->Add( $hbox, 0, Wx::wxALL | Wx::wxEXPAND, 5 );
+	my $hbox = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$self->_vbox->Add( $hbox, 0, Wx::ALL | Wx::EXPAND, 5 );
 
 	# CheckBox
 	$self->{autosave} = Wx::CheckBox->new(
@@ -280,7 +280,7 @@ sub _create_options {
 	#			}
 	#		);
 
-	$hbox->Add( $self->{autosave}, 0, Wx::wxALL, 5 );
+	$hbox->Add( $self->{autosave}, 0, Wx::ALL, 5 );
 }
 
 #
@@ -294,22 +294,22 @@ sub _create_buttons {
 	my $self = shift;
 
 	# the hbox
-	my $hbox = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$self->_vbox->Add( $hbox, 0, Wx::wxALL | Wx::wxEXPAND, 5 );
+	my $hbox = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$self->_vbox->Add( $hbox, 0, Wx::ALL | Wx::EXPAND, 5 );
 
 	# the buttons
-	my $bo = Wx::Button->new( $self, -1,              Wx::gettext('&Open') );
-	my $bd = Wx::Button->new( $self, -1,              Wx::gettext('&Delete') );
-	my $bc = Wx::Button->new( $self, Wx::wxID_CANCEL, Wx::gettext('&Close') );
+	my $bo = Wx::Button->new( $self, -1,            Wx::gettext('&Open') );
+	my $bd = Wx::Button->new( $self, -1,            Wx::gettext('&Delete') );
+	my $bc = Wx::Button->new( $self, Wx::ID_CANCEL, Wx::gettext('&Close') );
 	$self->_butopen($bo);
 	$self->_butdelete($bd);
 	Wx::Event::EVT_BUTTON( $self, $bo, \&_on_butopen_clicked );
 	Wx::Event::EVT_BUTTON( $self, $bd, \&_on_butdelete_clicked );
 	Wx::Event::EVT_BUTTON( $self, $bc, \&_on_butclose_clicked );
-	$hbox->Add( $bo, 0, Wx::wxALL, 5 );
-	$hbox->Add( $bd, 0, Wx::wxALL, 5 );
+	$hbox->Add( $bo, 0, Wx::ALL, 5 );
+	$hbox->Add( $bd, 0, Wx::ALL, 5 );
 	$hbox->AddStretchSpacer;
-	$hbox->Add( $bc, 0, Wx::wxALL, 5 );
+	$hbox->Add( $bc, 0, Wx::ALL, 5 );
 }
 
 #
@@ -405,8 +405,8 @@ sub _refresh_list {
 	# auto-resize columns
 	my $flag =
 		$list->GetItemCount
-		? Wx::wxLIST_AUTOSIZE
-		: Wx::wxLIST_AUTOSIZE_USEHEADER;
+		? Wx::LIST_AUTOSIZE
+		: Wx::LIST_AUTOSIZE_USEHEADER;
 	$list->SetColumnWidth( $_, $flag ) for 0 .. 2;
 
 	# making sure the list can show all columns
@@ -429,7 +429,7 @@ sub _select_first_item {
 
 	if ( $list->GetItemCount ) {
 		my $item = $list->GetItem(0);
-		$item->SetState(Wx::wxLIST_STATE_SELECTED);
+		$item->SetState(Wx::LIST_STATE_SELECTED);
 		$list->SetItem($item);
 	} else {
 
@@ -495,7 +495,7 @@ a current list of sessions.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl 5 itself.
@@ -504,7 +504,7 @@ under the same terms as Perl 5 itself.
 =cut
 
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

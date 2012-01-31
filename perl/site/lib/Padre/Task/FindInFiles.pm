@@ -9,7 +9,7 @@ use Padre::Search ();
 use Padre::Task   ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Task';
 
 
@@ -67,9 +67,10 @@ sub root {
 sub run {
 	require Module::Manifest;
 	require Padre::Wx::Directory::Path;
-	my $self  = shift;
-	my $root  = $self->{root};
-	my @queue = Padre::Wx::Directory::Path->directory;
+	my $self   = shift;
+	my $root   = $self->{root};
+	my $output = $self->{output};
+	my @queue  = Padre::Wx::Directory::Path->directory;
 
 	# Prepare the skip rules
 	my $rule = Module::Manifest->new;
@@ -79,9 +80,9 @@ sub run {
 	while (@queue) {
 
 		# Abort the task if we've been cancelled
-		if ( $self->cancel ) {
+		if ( $self->cancelled ) {
 			TRACE('Padre::Wx::Directory::Search task has been cancelled') if DEBUG;
-			$self->handle->status;
+			$self->tell_status;
 			return 1;
 
 		}
@@ -98,7 +99,7 @@ sub run {
 		closedir DIRECTORY;
 
 		# Notify our parent we are working on this directory
-		$self->handle->status( "Searching... " . $parent->unix );
+		$self->tell_status( "Searching... " . $parent->unix );
 
 		my @children = ();
 		foreach my $file (@list) {
@@ -108,9 +109,9 @@ sub run {
 			next if $file =~ /^\.git$/;
 
 			# Abort the task if we've been cancelled
-			if ( $self->cancel ) {
+			if ( $self->cancelled ) {
 				TRACE('Padre::Wx::Directory::Search task has been cancelled') if DEBUG;
-				$self->handle->status;
+				$self->tell_status;
 				return 1;
 			}
 
@@ -155,6 +156,19 @@ sub run {
 			my $buffer = do { local $/; <$fh> };
 			close $fh;
 
+			# Is this the correct MIME type
+			if ( $self->{mime} ) {
+				require Padre::MIME;
+				my $type = Padre::MIME->detect(
+					file => $fullname,
+					text => $buffer,
+				);
+				unless ( defined $type and $type eq $self->{mime} ) {
+					TRACE("Skipped $fullname: Not a $self->{mime} (got " . ($type || 'undef') . ")") if DEBUG;
+					next;
+				}
+			}
+
 			# Hand off to the compiled search object
 			my @lines = $self->{search}->match_lines(
 				$buffer,
@@ -164,20 +178,26 @@ sub run {
 			next unless @lines;
 
 			# Found results, inform our owner
-			$self->message( OWNER => $object, @lines );
+			$self->tell_owner( $object, @lines );
+
+			# If the task wants manual output capture as well,
+			# then save the result as well.
+			if ( $output ) {
+				push @$output, [ $object, @lines ];
+			}
 		}
 		unshift @queue, @children;
 	}
 
 	# Notify our parent we are finished searching
-	$self->handle->status;
+	$self->tell_status;
 
 	return 1;
 }
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

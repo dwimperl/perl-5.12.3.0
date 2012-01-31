@@ -5,8 +5,10 @@ package Padre::Wx;
 use 5.008;
 use strict;
 use warnings;
-use constant     ();
-use Params::Util ();
+use constant        ();
+use Params::Util    ();
+use Padre::Constant ();
+use Padre::Current  ();
 
 # Threading must be loaded before Wx loads
 use threads;
@@ -15,14 +17,12 @@ use threads::shared;
 # Load every exportable constant into here, so that they come into
 # existence in the Wx:: packages, allowing everywhere else in the code to
 # use them without braces.
-use Wx         (':everything');
 use Wx         ('wxTheClipboard');
 use Wx::Event  (':everything');
-use Wx::DND    ();
 use Wx::AUI    ();
-use Wx::Locale ();
+use Wx::Socket ();
 
-our $VERSION    = '0.90';
+our $VERSION    = '0.94';
 our $COMPATIBLE = '0.43';
 
 BEGIN {
@@ -36,62 +36,29 @@ BEGIN {
 	# Don't load all of them with Wx::InitAllImageHandlers, it wastes memory.
 	Wx::Image::AddHandler( Wx::PNGHandler->new );
 	Wx::Image::AddHandler( Wx::ICOHandler->new );
-	Wx::InitAllImageHandlers();
+	Wx::Image::AddHandler( Wx::XPMHandler->new );
+
+	# Load the enhanced constants package
+	require Padre::Wx::Constant;
 }
+
+# Some default Wx objects
+use constant {
+	DEFAULT_COLOUR => Wx::Colour->new( 0xFF, 0xFF, 0xFF ),
+	NULL_FONT      => Wx::Font->new( Wx::NullFont ),
+	EDITOR_FONT    => Wx::Font->new( 9, Wx::TELETYPE, Wx::NORMAL, Wx::NORMAL ),
+};
 
 sub import {
 	my $class = shift;
-	unless ( $_[0] and $_[0] eq ':api2' ) {
-		return;
+	my @load  = grep { not $_->VERSION } map { "Wx::$_" } @_;
+	if ( @load ) {
+		local $@;
+		eval join "\n", map { "require $_;" } @load;
+		Padre::Wx::Constant::load();
 	}
-
-	# Scan for all of the Wx::wxFOO AUTOLOAD functions and
-	# check that we can create Wx::FOO constants.
-	my %constants = ();
-	foreach my $function ( sort map { /^wx([A-Z].+)$/ ? $1 : () } keys %Wx:: ) {
-		next if $function eq 'VERSION';
-		next if $function =~ /^Log[A-Z]/;
-		if ( exists $Wx::{$function} ) {
-			warn "Clash with function Wx::$function";
-			next;
-		}
-		if ( exists $Wx::{"${function}::"} ) {
-			warn "Pseudoclash with namespace Wx::${function}::";
-			next;
-		}
-		my $error = 0;
-		my $value = Wx::constant( "wx$function", 0, $error );
-		next if $error;
-		$constants{$function} = $value;
-	}
-
-	# Convert to proper constants
-	# NOTE: This completes the conversion of Wx::wxFoo constants to Wx::Foo.
-	# NOTE: On separate lines to prevent the PAUSE indexer thingkng that we
-	#       are trying to claim ownership of Wx.pm
-	SCOPE: {
-		package ## no critic
-			Wx;
-		constant::->import( \%constants );
-	}
-
 	return 1;
 }
-
-
-
-
-
-#####################################################################
-# Defines for sidebar marker; others may be needed for breakpoint
-# icons etc.
-
-use constant {
-	MarkError      => 1,
-	MarkWarn       => 2,
-	MarkLocation   => 3, # current location of the debugger
-	MarkBreakpoint => 4, # location of the debugger breakpoint
-};
 
 
 
@@ -120,18 +87,54 @@ sub version_human {
 
 # Colour constructor
 sub color {
-	my $rgb = shift;
-	my @c = ( 0xFF, 0xFF, 0xFF ); # Some default
-	if ( not defined $rgb ) {
+	my $string = shift;
+	my @rgb    = ( 0xFF, 0xFF, 0xFF ); # Some default
+	if ( not defined $string ) {
 
 		# Carp::cluck("undefined color");
-	} elsif ( $rgb =~ /^(..)(..)(..)$/ ) {
-		@c = map { hex($_) } ( $1, $2, $3 );
+	} elsif ( $string =~ /^(..)(..)(..)$/ ) {
+		@rgb = map { hex($_) } ( $1, $2, $3 );
 	} else {
 
-		# Carp::cluck("invalid color '$rgb'");
+		# Carp::cluck("invalid color '$string'");
 	}
-	return Wx::Colour->new(@c);
+	return Wx::Colour->new(@rgb);
+}
+
+# Font constructor
+sub native_font {
+	my $string = shift;
+	unless ( defined Params::Util::_STRING($string) ) {
+		return NULL_FONT;
+	}
+
+	# Attempt to apply the font string
+	local $@;
+	my $nfont = eval {
+		my $font = Wx::Font->new( Wx::NullFont );
+		$font->SetNativeFontInfoUserDesc($string);
+		$font->IsOk ? $font : undef;
+	};
+        return $nfont if $nfont;
+	return NULL_FONT;
+}
+
+# Telytype/editor font
+sub editor_font {
+	my $string = shift;
+	unless ( defined Params::Util::_STRING($string) ) {
+		return EDITOR_FONT;
+	}
+
+	# Attempt to apply the font string
+	local $@;
+	my $efont = eval {
+		my $font = Wx::Font->new( 9, Wx::TELETYPE, Wx::NORMAL, Wx::NORMAL );
+		$font->SetNativeFontInfoUserDesc($string);
+		$font->IsOk ? $font : undef;
+	};
+	return $efont if $efont;
+	return EDITOR_FONT;
 }
 
 # The Wx::AuiPaneInfo method-chaining API is stupid.
@@ -146,36 +149,12 @@ sub aui_pane_info {
 	return $info;
 }
 
-# Allow objects to capture the mouse when over them, so you can scroll
-# lists and such without focusing on them.
-sub capture_mouse {
-	my $window = Params::Util::_INSTANCE( shift, 'Wx::Window' ) or return;
-	Wx::Event::EVT_ENTER_WINDOW(
-		$window,
-		sub {
-			$window->CaptureMouse;
-		}
-	);
-	Wx::Event::EVT_LEAVE_WINDOW(
-		$window,
-		sub {
-			$window->ReleaseMouse;
-		}
-	);
-}
-
 
 
 
 
 #####################################################################
 # External Website Integration
-
-# Fire and forget background version of Wx::LaunchDefaultBrowser
-sub LaunchDefaultBrowser {
-	warn("Padre::Wx::LaunchDefaultBrowser is deprecated. Use launch_browser");
-	launch_browser(@_);
-}
 
 sub launch_browser {
 	require Padre::Task::LaunchDefaultBrowser;
@@ -190,7 +169,7 @@ sub launch_irc {
 
 	# Generate the (long) chat URL
 	my $url = "http://padre.perlide.org/irc.html?channel=$channel";
-	if ( my $locale = Padre->ide->config->locale ) {
+	if ( my $locale = Padre::Current->config->locale ) {
 		$url .= "&locale=$locale";
 	}
 
@@ -198,6 +177,26 @@ sub launch_irc {
 	launch_browser($url);
 
 	return;
+}
+
+# Launch a browser window for a local file
+sub launch_file {
+	require URI::file;
+	launch_browser( URI::file->new_abs(shift) );
+}
+
+
+
+
+
+######################################################################
+# Wx::Event Convenience Functions
+
+# FIXME Find out why EVT_CONTEXT_MENU doesn't work on Ubuntu
+if ( Padre::Constant::UNIX ) {
+	*Wx::Event::EVT_CONTEXT = *Wx::Event::EVT_RIGHT_DOWN;
+} else {
+	*Wx::Event::EVT_CONTEXT = *Wx::Event::EVT_CONTEXT_MENU;
 }
 
 1;
@@ -220,7 +219,7 @@ use them without braces.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

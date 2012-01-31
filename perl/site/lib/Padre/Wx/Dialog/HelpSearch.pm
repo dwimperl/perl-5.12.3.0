@@ -5,12 +5,13 @@ use strict;
 use warnings;
 
 # package exports and version
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Wx::Dialog';
 
 # module imports
 use Padre::Wx       ();
 use Padre::Wx::Icon ();
+use Padre::Wx::HtmlWindow ();
 
 # accessors
 use Class::XSAccessor {
@@ -37,9 +38,9 @@ sub new {
 		$main,
 		-1,
 		Wx::gettext('Help Search'),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxDEFAULT_FRAME_STYLE | Wx::wxTAB_TRAVERSAL,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::DEFAULT_FRAME_STYLE | Wx::TAB_TRAVERSAL,
 	);
 
 	$self->_main($main);
@@ -106,7 +107,7 @@ sub _create {
 	my $self = shift;
 
 	# create sizer that will host all controls
-	$self->_hbox( Wx::BoxSizer->new(Wx::wxHORIZONTAL) );
+	$self->_hbox( Wx::BoxSizer->new(Wx::HORIZONTAL) );
 
 	# create the controls
 	$self->_create_controls;
@@ -132,8 +133,8 @@ sub _create_controls {
 	$self->_topic_selector(
 		Wx::Choice->new(
 			$self, -1,
-			Wx::wxDefaultPosition,
-			Wx::wxDefaultSize,
+			Wx::DefaultPosition,
+			Wx::DefaultSize,
 			\@topics,
 		)
 	);
@@ -156,43 +157,42 @@ sub _create_controls {
 		Wx::ListBox->new(
 			$self,
 			-1,
-			Wx::wxDefaultPosition,
+			Wx::DefaultPosition,
 			[ 180, -1 ],
 			[],
-			Wx::wxLB_SINGLE
+			Wx::LB_SINGLE
 		)
 	);
 
 	# HTML Help Viewer
-	require Padre::Wx::HtmlWindow;
 	$self->_help_viewer(
 		Padre::Wx::HtmlWindow->new(
 			$self,
 			-1,
-			Wx::wxDefaultPosition,
-			Wx::wxDefaultSize,
-			Wx::wxBORDER_STATIC
+			Wx::DefaultPosition,
+			Wx::DefaultSize,
+			Wx::BORDER_STATIC
 		)
 	);
 	$self->_help_viewer->SetPage('');
 
-	my $close_button = Wx::Button->new( $self, Wx::wxID_CANCEL, Wx::gettext('&Close') );
+	my $close_button = Wx::Button->new( $self, Wx::ID_CANCEL, Wx::gettext('&Close') );
 	$self->_status( Wx::StaticText->new( $self, -1, '' ) );
 
-	my $vbox = Wx::BoxSizer->new(Wx::wxVERTICAL);
+	my $vbox = Wx::BoxSizer->new(Wx::VERTICAL);
 
-	$vbox->Add( $topic_label,           0, Wx::wxALL | Wx::wxEXPAND,     2 );
-	$vbox->Add( $self->_topic_selector, 0, Wx::wxALL | Wx::wxEXPAND,     2 );
-	$vbox->Add( $search_label,          0, Wx::wxALL | Wx::wxEXPAND,     2 );
-	$vbox->Add( $self->_search_text,    0, Wx::wxALL | Wx::wxEXPAND,     2 );
-	$vbox->Add( $matches_label,         0, Wx::wxALL | Wx::wxEXPAND,     2 );
-	$vbox->Add( $self->_list,           1, Wx::wxALL | Wx::wxEXPAND,     2 );
-	$vbox->Add( $self->_status,         0, Wx::wxALL | Wx::wxEXPAND,     0 );
-	$vbox->Add( $close_button,          0, Wx::wxALL | Wx::wxALIGN_LEFT, 0 );
-	$self->_hbox->Add( $vbox, 0, Wx::wxALL | Wx::wxEXPAND, 2 );
+	$vbox->Add( $topic_label,           0, Wx::ALL | Wx::EXPAND,     2 );
+	$vbox->Add( $self->_topic_selector, 0, Wx::ALL | Wx::EXPAND,     2 );
+	$vbox->Add( $search_label,          0, Wx::ALL | Wx::EXPAND,     2 );
+	$vbox->Add( $self->_search_text,    0, Wx::ALL | Wx::EXPAND,     2 );
+	$vbox->Add( $matches_label,         0, Wx::ALL | Wx::EXPAND,     2 );
+	$vbox->Add( $self->_list,           1, Wx::ALL | Wx::EXPAND,     2 );
+	$vbox->Add( $self->_status,         0, Wx::ALL | Wx::EXPAND,     0 );
+	$vbox->Add( $close_button,          0, Wx::ALL | Wx::ALIGN_LEFT, 0 );
+	$self->_hbox->Add( $vbox, 0, Wx::ALL | Wx::EXPAND, 2 );
 	$self->_hbox->Add(
-		$self->_help_viewer,                                                        1,
-		Wx::wxALL | Wx::wxALIGN_TOP | Wx::wxALIGN_CENTER_HORIZONTAL | Wx::wxEXPAND, 1
+		$self->_help_viewer,                                                1,
+		Wx::ALL | Wx::ALIGN_TOP | Wx::ALIGN_CENTER_HORIZONTAL | Wx::EXPAND, 1
 	);
 
 	$self->_setup_events;
@@ -213,7 +213,7 @@ sub _setup_events {
 			my $event = shift;
 			my $code  = $event->GetKeyCode;
 
-			if ( $code == Wx::WXK_DOWN || $code == Wx::WXK_PAGEDOWN ) {
+			if ( $code == Wx::K_DOWN || $code == Wx::K_PAGEDOWN ) {
 				$self->_list->SetFocus;
 			}
 
@@ -262,8 +262,8 @@ sub show {
 		}
 		$self->_topic($topic);
 		$self->_search_text->ChangeValue( $self->_topic );
-		my $doc = Padre::Current->document;
-		if ($doc) {
+		my $document = Padre::Current->document;
+		if ($document) {
 			$self->_help_provider(undef);
 		}
 		$self->Show(1);
@@ -300,16 +300,18 @@ sub _search {
 
 	# Generate a sorted file-list based on filename
 	if ( not $self->_help_provider ) {
-		my $doc = Padre::Current->document;
-		if ($doc) {
-			eval { $self->_help_provider( $doc->get_help_provider ); };
+		my $document = Padre::Current->document;
+		if ($document) {
+			eval { $self->_help_provider( $document->get_help_provider ); };
 			if ($@) {
 				$self->_display_msg( sprintf( Wx::gettext('Error while calling %s %s'), 'get_help_provider', $@ ) );
 				return;
 			}
 			if ( not $self->_help_provider ) {
-				$self->_display_msg( Wx::gettext("Could not find a help provider for ")
-						. Padre::MimeTypes->get_mime_type_name( $doc->mimetype ) );
+				$self->_display_msg(
+					Wx::gettext("Could not find a help provider for ") .
+					Wx::gettext($document->mime->name)
+				);
 				return;
 			}
 		} else {
@@ -335,14 +337,14 @@ sub _search {
 sub _find_help_topic {
 	my $self = shift;
 
-	my $doc = Padre::Current->document;
-	return '' unless $doc;
+	my $document = Padre::Current->document;
+	return '' unless $document;
 
-	my $topic = $doc->find_help_topic;
+	my $topic = $document->find_help_topic;
 
 	#fallback
 	unless ($topic) {
-		my $editor = $doc->editor;
+		my $editor = $document->editor;
 		my $pos    = $editor->GetCurrentPos;
 
 		# The selected/under the cursor word is a help topic
@@ -447,14 +449,14 @@ Ahmad M. Zawawi C<< <ahmad.zawawi at gmail.com> >>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

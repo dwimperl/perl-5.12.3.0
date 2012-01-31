@@ -11,7 +11,7 @@ use Padre::Task                ();
 use Padre::Wx::Directory::Path ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Task';
 
 use constant NO_WARN => 1;
@@ -100,9 +100,9 @@ sub run {
 	while (@queue) {
 
 		# Abort the task if we've been cancelled
-		if ( $self->cancel ) {
+		if ( $self->cancelled ) {
 			TRACE('Padre::Wx::Directory::Search task has been cancelled') if DEBUG;
-			$self->handle->status;
+			$self->tell_status;
 			return 1;
 		}
 
@@ -114,7 +114,7 @@ sub run {
 			if ( $object->name =~ $filter ) {
 
 				# Send the matching file to the parent thread
-				$self->message( OWNER => $object );
+				$self->tell_owner($object);
 			}
 			next;
 		}
@@ -129,7 +129,7 @@ sub run {
 		closedir DIRECTORY;
 
 		# Notify our parent we are working on this directory
-		$self->handle->status( "Searching... " . $object->unix );
+		$self->tell_status( "Searching... " . $object->unix );
 
 		# Step 1 - Map the files into path objects
 		my @objects = ();
@@ -137,9 +137,9 @@ sub run {
 			next if $file =~ /^\.+\z/;
 
 			# Abort the task if we've been cancelled
-			if ( $self->cancel ) {
+			if ( $self->cancelled ) {
 				TRACE('Padre::Wx::Directory::Search task has been cancelled') if DEBUG;
-				$self->handle->status;
+				$self->tell_status;
 				return 1;
 			}
 
@@ -228,14 +228,14 @@ sub run {
 	}
 
 	# Notify our parent we are finished searching
-	$self->handle->status;
+	$self->tell_status;
 
 	return 1;
 }
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

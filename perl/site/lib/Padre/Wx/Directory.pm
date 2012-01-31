@@ -8,14 +8,14 @@ use Padre::Current                 ();
 use Padre::Util                    ();
 use Padre::Feature                 ();
 use Padre::Role::Task              ();
+use Padre::Wx                      ();
 use Padre::Wx::Role::Dwell         ();
 use Padre::Wx::Role::View          ();
 use Padre::Wx::Role::Main          ();
 use Padre::Wx::Directory::TreeCtrl ();
-use Padre::Wx                      ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Role::Task
 	Padre::Wx::Role::Dwell
@@ -23,8 +23,6 @@ our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Wx::Panel
 };
-
-use constant TIMER_DIRECTORY => Wx::NewId();
 
 use Class::XSAccessor {
 	getters => {
@@ -52,8 +50,8 @@ sub new {
 	my $self = $class->SUPER::new(
 		$main->directory_panel,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 	);
 
 	# Where is the current root directory of the tree
@@ -71,9 +69,9 @@ sub new {
 		$self,
 		-1,
 		'',
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxTE_PROCESS_ENTER
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::TE_PROCESS_ENTER
 	);
 
 	# Set the descriptive text for the search button.
@@ -106,6 +104,20 @@ sub new {
 		},
 	);
 
+	# Create the render interval timer when searching
+	$self->{find_timer_id} = Wx::NewId();
+	$self->{find_timer}    = Wx::Timer->new(
+		$self,
+		$self->{find_timer_id},
+	);
+	Wx::Event::EVT_TIMER(
+		$self,
+		$self->{find_timer_id},
+		sub {
+			$self->find_timer( $_[1], $_[2] );
+		},
+	);
+
 	# Create the search control menu
 	$search->SetMenu( $self->new_menu );
 
@@ -125,18 +137,18 @@ sub new {
 	);
 
 	# Fill the panel
-	my $sizerv = Wx::BoxSizer->new(Wx::wxVERTICAL);
-	my $sizerh = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$sizerv->Add( $self->{search}, 0, Wx::wxALL | Wx::wxEXPAND, 0 );
-	$sizerv->Add( $self->{tree},   1, Wx::wxALL | Wx::wxEXPAND, 0 );
-	$sizerh->Add( $sizerv,         1, Wx::wxALL | Wx::wxEXPAND, 0 );
+	my $sizerv = Wx::BoxSizer->new(Wx::VERTICAL);
+	my $sizerh = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$sizerv->Add( $self->{search}, 0, Wx::ALL | Wx::EXPAND, 0 );
+	$sizerv->Add( $self->{tree},   1, Wx::ALL | Wx::EXPAND, 0 );
+	$sizerh->Add( $sizerv,         1, Wx::ALL | Wx::EXPAND, 0 );
 
 	# Fits panel layout
 	$self->SetSizerAndFit($sizerh);
 	$sizerh->SetSizeHints($self);
 
 	if (Padre::Feature::STYLE_GUI) {
-		$self->recolour;
+		$self->main->theme->apply( $self->{tree} );
 	}
 
 	return $self;
@@ -181,6 +193,16 @@ sub new_menu {
 ######################################################################
 # Padre::Role::Task Methods
 
+sub task_reset {
+	my $self = shift;
+
+	# As a convenience, reset any timers used by task message processing
+	$self->{find_timer}->Stop;
+
+	# Reset normally as well
+	$self->SUPER::task_reset(@_);
+}
+
 sub task_request {
 	my $self    = shift;
 	my $current = $self->current;
@@ -206,14 +228,17 @@ sub view_panel {
 }
 
 sub view_label {
-	shift->gettext_label(@_);
+	Wx::gettext('Project');
 }
 
 sub view_close {
+	shift->main->show_directory(0);
+}
+
+sub view_stop {
 	TRACE( $_[0] ) if DEBUG;
 	$_[0]->task_reset;
 	$_[0]->dwell_stop('on_text'); # Just in case
-	$_[0]->main->show_directory(0);
 }
 
 
@@ -291,11 +316,6 @@ sub on_expand {
 ######################################################################
 # General Methods
 
-# Returns the window label
-sub gettext_label {
-	Wx::gettext('Project');
-}
-
 # The search term if we have one
 sub term {
 	$_[0]->{search}->GetValue;
@@ -311,39 +331,11 @@ sub searching {
 sub clear {
 	TRACE( $_[0] ) if DEBUG;
 	my $self = shift;
-	my $lock = $self->main->lock('UPDATE');
+	my $lock = $self->lock_update;
 	$self->{search}->SetValue('');
 	$self->{search}->ShowCancelButton(0);
 	$self->{tree}->DeleteChildren( $self->{tree}->GetRootItem );
 	return;
-}
-
-# Pick up colouring from the current editor style
-sub recolour {
-	my $self   = shift;
-	my $config = $self->config;
-
-	# Load the editor style
-	require Padre::Wx::Editor;
-	my $data = Padre::Wx::Editor::data( $config->editor_style ) or return;
-
-	# Find the colours we need
-	my $foreground = $data->{padre}->{colors}->{PADRE_BLACK}->{foreground};
-	my $background = $data->{padre}->{background};
-
-	# Apply them to the widgets
-	if ( defined $foreground and defined $background ) {
-		$foreground = Padre::Wx::color($foreground);
-		$background = Padre::Wx::color($background);
-
-		$self->{tree}->SetForegroundColour($foreground);
-		$self->{tree}->SetBackgroundColour($background);
-
-		# $self->{search}->SetForegroundColour($foreground);
-		# $self->{search}->SetBackgroundColour($background);
-	}
-
-	return 1;
 }
 
 # Refill the tree from storage
@@ -353,7 +345,7 @@ sub refill {
 	my $root   = $tree->GetRootItem;
 	my $files  = delete $self->{files} or return;
 	my $expand = delete $self->{expand} or return;
-	my $lock   = $self->main->lock('UPDATE');
+	my $lock   = $self->lock_update;
 	my @stack  = ();
 	shift @$files;
 
@@ -578,56 +570,8 @@ sub browse_message {
 	my ( $child, $cookie ) = $tree->GetFirstChild($cursor);
 	my $position = 0;
 	while (@_) {
-		if ( $child->IsOk ) {
-
-			# Are we before, after, or a duplicate
-			my $chd = $tree->GetPlData($child);
-			if ( not defined $_[0] or not defined $chd ) {
-
-				# TODO: this should never happen, but it does and it crashes padre in the compare method
-				# when calling is_directory on the object.
-				warn
-					"Something is wrong as one of the directory objects is undef (position=$position, child=$child, chd=$chd)";
-				$self->main->error(
-					Wx::gettext(
-						'The directory browser got an undef object and may stop working now. Please save your work and restart Padre.'
-					)
-				);
-				last;
-			}
-			my $compare = $self->compare( $_[0], $chd );
-			if ( $compare > 0 ) {
-
-				# Deleted entry, remove the current position
-				my $delete = $child;
-				( $child, $cookie ) = $tree->GetNextChild( $cursor, $cookie );
-				$tree->Delete($delete);
-
-			} elsif ( $compare < 0 ) {
-
-				# New entry, insert before the current position
-				my $path = shift;
-				$tree->InsertItem(
-					$cursor,                           # Parent
-					$position,                         # Before
-					$path->name,                       # Label
-					$tree->{images}->{ $path->image }, # Icon
-					-1,                                # Icon (Selected)
-					Wx::TreeItemData->new($path),      # Embedded data
-				);
-				$position++;
-
-			} else {
-
-				# Already exists, discard the duplicate
-				( $child, $cookie ) = $tree->GetNextChild( $cursor, $cookie );
-				$position++;
-				shift @_;
-			}
-
-		} else {
-
-			# We are past the last entry
+		# Are we past the last entry?
+		unless ( $child->IsOk ) {
 			my $path = shift;
 			$tree->AppendItem(
 				$cursor,                           # Parent
@@ -636,6 +580,52 @@ sub browse_message {
 				-1,                                # Icon (Selected)
 				Wx::TreeItemData->new($path),      # Embedded data
 			);
+			next;
+		}
+
+		# Are we before, after, or a duplicate
+		my $chd = $tree->GetPlData($child);
+		if ( not defined $_[0] or not defined $chd ) {
+
+			# TODO: this should never happen, but it does and it crashes padre in the compare method
+			# when calling is_directory on the object.
+			unless ( defined $chd ) {
+				warn "GetPlData is bizarely undef for position=$position and child=$child";
+			}
+			$self->main->error(
+				Wx::gettext('Hit unfixed bug in directory browser, disabling it')
+			);
+			$self->main->show_directory(0);
+			return 1;
+		}
+		my $compare = $self->compare( $_[0], $chd );
+		if ( $compare > 0 ) {
+
+			# Deleted entry, remove the current position
+			my $delete = $child;
+			( $child, $cookie ) = $tree->GetNextChild( $cursor, $cookie );
+			$tree->Delete($delete);
+
+		} elsif ( $compare < 0 ) {
+
+			# New entry, insert before the current position
+			my $path = shift;
+			$tree->InsertItem(
+				$cursor,                           # Parent
+				$position,                         # Before
+				$path->name,                       # Label
+				$tree->{images}->{ $path->image }, # Icon
+				-1,                                # Icon (Selected)
+				Wx::TreeItemData->new($path),      # Embedded data
+			);
+			$position++;
+
+		} else {
+
+			# Already exists, discard the duplicate
+			( $child, $cookie ) = $tree->GetNextChild( $cursor, $cookie );
+			$position++;
+			shift @_;
 		}
 	}
 
@@ -678,19 +668,11 @@ sub find {
 		filter     => $self->term,
 	);
 
-	# Create the find timer
-	$self->{find_timer} = Wx::Timer->new(
-		$self,
-		TIMER_DIRECTORY
-	);
-	Wx::Event::EVT_TIMER(
-		$self,
-		TIMER_DIRECTORY,
-		sub {
-			$self->find_timer( $_[1], $_[2] );
-		},
-	);
-	$self->{find_timer}->Start(1000);
+	# Set up the queue for result messages
+	$self->{find_queue} = [];
+
+	# Start the find render timer
+	$self->{find_timer}->Start(250);
 
 	# Make sure no existing files are listed
 	$self->{tree}->DeleteChildren( $self->{tree}->GetRootItem );
@@ -698,73 +680,18 @@ sub find {
 	return;
 }
 
+sub find_message {
+	TRACE( $_[2]->unix ) if DEBUG;
+	my $self = shift;
+	my $task = shift;
+	my $path = Params::Util::_INSTANCE( shift, 'Padre::Wx::Directory::Path' ) or return;
+	push @{ $self->{find_queue} }, $path;
+}
+
 # We have hit a find_message render interval
 sub find_timer {
 	TRACE( $_[0] ) if DEBUG;
-}
-
-# Add any matching file to the tree
-sub find_message {
-	TRACE( $_[0] ) if DEBUG;
-	my $self = shift;
-	my $task = shift;
-	my $file = Params::Util::_INSTANCE( shift, 'Padre::Wx::Directory::Path' ) or return;
-
-	# Find where we need to start creating nodes from
-	my $tree   = $self->tree;
-	my $cursor = $tree->GetRootItem;
-	my @base   = ();
-	my @dirs   = $file->path;
-	pop @dirs;
-	while (@dirs) {
-		my $name  = shift @dirs;
-		my $child = $tree->GetLastChild($cursor);
-		if ( $child->IsOk and $tree->GetPlData($child)->name eq $name ) {
-			$cursor = $child;
-			push @base, $name;
-		} else {
-			unshift @dirs, $name;
-			last;
-		}
-	}
-
-	# Will we need to expand anything at the end?
-	my $expand = @dirs ? $cursor : undef;
-
-	# Because this should never be called from inside some larger
-	# update locker, lets risk the use of our own more targetted locking
-	# instead of using the official main->lock functionality.
-	# Allow the lock to release naturally at the end of the method.
-	my $lock = $tree->scroll_lock;
-
-	# Create any new child directories
-	while (@dirs) {
-		my $name = shift @dirs;
-		my $path = Padre::Wx::Directory::Path->directory( @base, $name );
-		my $item = $tree->AppendItem(
-			$cursor,                      # Parent
-			$path->name,                  # Label
-			$tree->{images}->{folder},    # Icon
-			-1,                           # Wx identifier
-			Wx::TreeItemData->new($path), # Embedded data
-		);
-		$cursor = $item;
-		push @base, $name;
-	}
-
-	# Create the file itself
-	$tree->AppendItem(
-		$cursor,
-		$file->name,
-		$tree->{images}->{package},
-		-1,
-		Wx::TreeItemData->new($file),
-	);
-
-	# Expand anything we created.
-	$tree->ExpandAllChildren($expand) if $expand;
-
-	return 1;
+	$_[0]->find_render;
 }
 
 sub find_finish {
@@ -772,7 +699,80 @@ sub find_finish {
 	my $self = shift;
 	my $task = shift;
 
-	# Done... but we don't need to do anything
+	# Halt the render timer
+	$self->{find_timer}->Stop;
+
+	# Render any final results
+	$self->find_render;
+}
+
+# Add any matching file to the tree
+sub find_render {
+	TRACE( $_[0] ) if DEBUG;
+	my $self  = shift;
+	my $queue = $self->{find_queue};
+	return unless @$queue;
+
+	# Because this should never be called from inside some larger
+	# update locker, lets risk the use of our own more targetted locking
+	# instead of using the official main->lock functionality.
+	# Allow the lock to release naturally at the end of the method.
+	my $tree = $self->tree;
+	my $lock = $tree->lock_scroll;
+
+	# Add all outstanding files
+	foreach my $file (@$queue) {
+
+		# Find where we need to start creating nodes from
+		my $cursor = $tree->GetRootItem;
+		my @base   = ();
+		my @dirs   = $file->path;
+		pop @dirs;
+		while (@dirs) {
+			my $name  = shift @dirs;
+			my $child = $tree->GetLastChild($cursor);
+			if ( $child->IsOk and $tree->GetPlData($child)->name eq $name ) {
+				$cursor = $child;
+				push @base, $name;
+			} else {
+				unshift @dirs, $name;
+				last;
+			}
+		}
+
+		# Will we need to expand anything at the end?
+		my $expand = @dirs ? $cursor : undef;
+
+		# Create any new child directories
+		while (@dirs) {
+			my $name = shift @dirs;
+			my $path = Padre::Wx::Directory::Path->directory( @base, $name );
+			my $item = $tree->AppendItem(
+				$cursor,                      # Parent
+				$path->name,                  # Label
+				$tree->{images}->{folder},    # Icon
+				-1,                           # Wx identifier
+				Wx::TreeItemData->new($path), # Embedded data
+			);
+			$cursor = $item;
+			push @base, $name;
+		}
+
+		# Create the file itself
+		$tree->AppendItem(
+			$cursor,
+			$file->name,
+			$tree->{images}->{package},
+			-1,
+			Wx::TreeItemData->new($file),
+		);
+
+		# Expand anything we created.
+		$tree->ExpandAllChildren($expand) if $expand;
+	}
+
+	# Reset the message queue
+	$self->{find_queue} = [];
 }
 
 
@@ -829,7 +829,7 @@ sub compare {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

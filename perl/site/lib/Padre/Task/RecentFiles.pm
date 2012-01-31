@@ -7,7 +7,7 @@ use Padre::Task     ();
 use Padre::Constant ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Task';
 
 
@@ -68,7 +68,7 @@ sub run {
 		TRACE("Checking $file\n") if DEBUG;
 
 		# Abort the task if we've been cancelled
-		if ( $self->cancel ) {
+		if ( $self->cancelled ) {
 			TRACE( __PACKAGE__ . ' task cancelled' ) if DEBUG;
 			return 1;
 		}
@@ -120,7 +120,7 @@ sub finish {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

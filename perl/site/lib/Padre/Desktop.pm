@@ -25,11 +25,11 @@ use warnings;
 use File::Spec      ();
 use Padre::Constant ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 =pod
 
-=head3 C<find_padre_exe>
+=head3 C<find_padre_location>
 
 Note: this only works under WIN32
 
@@ -38,29 +38,29 @@ Returns C<undef> if not found.
 
 =cut
 
-sub find_padre_exe {
-	return unless Padre::Constant::WXWIN32;
+sub find_padre_location {
+	return unless Padre::Constant::WIN32;
 
 	require File::Which;
-	my $padre_exe = File::Which::which('padre.exe');
+	my $padre_executable = File::Which::which('padre.exe');
 
 	#exit if we could not find Padre's executable in PATH
-	if ($padre_exe) {
+	if ($padre_executable) {
 		require File::Basename;
-		my $padre_exe_dir = File::Basename::dirname($padre_exe);
-		return ( $padre_exe, $padre_exe_dir );
+		my $padre_exe_dir = File::Basename::dirname($padre_executable);
+		return ( $padre_executable, $padre_exe_dir );
 	} else {
 		return;
 	}
 }
 
 sub desktop {
-	if (Padre::Constant::WXWIN32) {
+	if (Padre::Constant::WIN32) {
 
 		#TODO Support Vista/Win7 UAC (User Account Control)
 
 		# Find Padre's executable
-		my ( $padre_exe, $padre_exe_dir ) = find_padre_exe();
+		my ( $padre_exe, $padre_exe_dir ) = find_padre_location();
 		return 0 unless $padre_exe;
 
 		# Write to the registry to get the "Edit with Padre" in the
@@ -68,17 +68,17 @@ sub desktop {
 		require Win32::TieRegistry;
 		my $Registry;
 		Win32::TieRegistry->import(
-			TiedRef => \$Registry, Delimiter => "/", ArrayValues => 1,
+			TiedRef => \$Registry, Delimiter => '/', ArrayValues => 1,
 		);
 		$Registry->Delimiter('/');
 		$Registry->{'HKEY_CLASSES_ROOT/*/shell/'} = {
 			'Edit with Padre/' => {
-				'Command/' => { "" => 'c:\\strawberry\\perl\\bin\\padre.exe "%1"' },
+				'Command/' => { '' => 'c:\\strawberry\\perl\\bin\\padre.exe "%1"' },
 			}
 			}
 			or return 0;
 
-		# Create Padre's Desktop Shortcut
+		# create Padre's desktop shortcut
 		require File::HomeDir;
 		my $padre_lnk = File::Spec->catfile(
 			File::HomeDir->my_desktop,
@@ -89,7 +89,7 @@ sub desktop {
 		# NOTE: Use Padre::Perl to make this distribution agnostic
 		require Win32::Shortcut;
 		my $link = Win32::Shortcut->new;
-		$link->{Description}      = "Padre - The Perl IDE";
+		$link->{Description}      = 'Padre - The Perl IDE';
 		$link->{Path}             = $padre_exe;
 		$link->{WorkingDirectory} = $padre_exe_dir;
 		$link->Save($padre_lnk);
@@ -98,14 +98,47 @@ sub desktop {
 		return 1;
 	}
 
+	if (Padre::Constant::UNIX) {
+
+		# create Padre's desktop shortcut
+		require File::HomeDir;
+		my $padre_desktop = File::Spec->catfile(
+			File::HomeDir->my_desktop,
+			'padre.desktop',
+		);
+		return 1 if -f $padre_desktop;
+
+		require Padre::Util;
+		my $icon_file = Padre::Util::sharedir('/icons/padre/64x64/logo.png');
+
+		open my $FH, '>', $padre_desktop or die "Could not open $padre_desktop for writing\n";
+		print $FH <<END;
+[Desktop Entry]
+Encoding=UTF-8
+Name=Padre
+Comment=The Perl IDE
+Exec=padre
+Icon=$icon_file
+Categories=Application;Development;Perl;IDE
+Version=1.0
+Type=Application
+Terminal=0
+
+END
+		close $FH;
+		chmod 0755, $padre_desktop; # make executable
+
+		return 1;
+	}
+
 	return 0;
 }
 
 sub quicklaunch {
-	if (Padre::Constant::WXWIN32) {
+	if (Padre::Constant::WIN32) {
 
 		# Find Padre's executable
-		my ( $padre_exe, $padre_exe_dir ) = find_padre_exe();
+		my ( $padre_exe, $padre_exe_dir ) = find_padre_location();
 		return 0 unless $padre_exe;
 
 		# Code stolen and modified from File::HomeDir, which doesn't
@@ -145,7 +178,7 @@ __END__
 
 =head1 COPYRIGHT
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -155,7 +188,7 @@ LICENSE file included with this module.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

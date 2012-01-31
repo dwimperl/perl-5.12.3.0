@@ -18,6 +18,10 @@ use strict;
 use warnings;
 use Carp ();
 
+our $VERSION = '0.94';
+
+use constant WIN32 => !!( $^O eq 'MSWin32' and $^X =~ /wperl\.exe/ );
+
 local $| = 1;
 local $SIG{__DIE__} =
 	$ENV{PADRE_DIE}
@@ -58,15 +62,15 @@ local $ENV{LIBOVERLAY_SCROLLBAR} = ( $^O eq 'linux' ) ? 0 : $ENV{LIBOVERLAY_SCRO
 
 # Handle special command line cases early, because options like --home
 # MUST be processed before the Padre.pm library is loaded.
-my $USAGE   = '';
-my $VERSION = '';
-my $HOME    = undef;
-my $RESET   = undef;
-my $SESSION = undef;
-my $PRELOAD = undef;
-my $DESKTOP = undef;
-my $ACTIONS = undef;
-my $LOCALE  = undef;
+my $USAGE       = '';
+my $SHOWVERSION = '';
+my $HOME        = undef;
+my $RESET       = undef;
+my $SESSION     = undef;
+my $PRELOAD     = undef;
+my $DESKTOP     = undef;
+my $ACTIONS     = undef;
+my $LOCALE      = undef;
 if ( grep {/^-/} @ARGV ) {
 
 	# Avoid loading Getopt::Long entirely if we can,
@@ -74,14 +78,16 @@ if ( grep {/^-/} @ARGV ) {
 	require Getopt::Long;
 	Getopt::Long::GetOptions(
 		'help|usage'    => \$USAGE,
-		'version'       => \$VERSION,
+		'version'       => \$SHOWVERSION,
 		'home=s'        => \$HOME,
 		'reset'         => \$RESET,
 		'session=s'     => \$SESSION,
 		'desktop'       => \$DESKTOP,
 		'actionqueue=s' => \$ACTIONS,
 		'locale=s'      => \$LOCALE,
-		'preload'       => \$PRELOAD, # Keep this sekrit for now --ADAMK
+
+		# Keep this sekrit for now --ADAMK
+		'preload'       => \$PRELOAD,
 	) or $USAGE = 1;
 }
 
@@ -103,36 +109,23 @@ Usage: $0 [FILENAMES]
 --session=name      Open given session during Padre startup
 --version           Prints Padre version and quits
 --desktop           Integrate Padre with your desktop
---actionqueue=list  Run a list of comma-seperated actions after Padre startup
+--actionqueue=list  Run a list of comma-separated actions after Padre startup
 --locale=name       Locale name to use
 
 END_USAGE
 	exit(1);
 }
 
-# Padre version
-if ($VERSION) {
-	require Padre;
-	my $msg = "Perl Application Development and Refactoring Environment $Padre::VERSION\n";
-	if ( $^O eq 'MSWin32' and $^X =~ /wperl\.exe/ ) {
-
-		# Under wperl, there is no console so we will use
-		# a message box
-		require Padre::Wx;
-		Wx::MessageBox(
-			$msg,
-			Wx::gettext("Version"),
-			Wx::wxOK(),
-		);
-	} else {
-		print $msg;
-	}
-	exit(0);
-}
-
 # Lock in the home and constants, which are needed for everything else
 local $ENV{PADRE_HOME} = defined($HOME) ? $HOME : $ENV{PADRE_HOME};
 require Padre::Constant;
+
+# Padre version
+if ($SHOWVERSION) {
+	require Padre;
+	message("Perl Application Development and Refactoring Environment $Padre::VERSION\n");
+	exit(0);
+}
 
 # Destroy and reinitialise our config directory
 if ($RESET) {
@@ -144,7 +137,7 @@ if ($RESET) {
 if ($DESKTOP) {
 	require Padre::Desktop;
 	unless ( Padre::Desktop::desktop() ) {
-		warn "--desktop not implemented for $^O\n";
+		error("--desktop not implemented for $^O");
 	}
 	exit(1);
 }
@@ -164,19 +157,47 @@ unless ( defined $ACTIONS ) {
 	}
 }
 
-require Padre;
+SCOPE: {
+	local $@;
+	eval {
+		require Padre;
 
-if ($PRELOAD) {
+		# Load the entire application into memory immediately
+		Padre->import(':everything') if $PRELOAD;
 
-	# Load the entire application into memory immediately
-	Padre->import(':everything');
+		#	use Aspect;
+		#	aspect( 'NYTProf',
+		#		call qr/^Padre::/ &
+		#		call qr/\b(?:refresh|update)\w*\z/ & !
+		#		call qr/^Padre::(?:Locker|Wx::Progress)::/
+		#	);
+	};
+	if ( $@ ) {
+		# Major startup failure!
+		# Handle a few specialised cases we understand
+		if ( $@ =~ /Schema user_version mismatch/ ) {
+			error("Padre configuration database schema invalid");
+			if ( WIN32 ) {
+				require Win32;
+				my $rv = Win32::MsgBox(
+					"Reset your configuration to try and fix it?",
+					4, "Padre",
+				);
+				if ( $rv == 6 ) {
+					require File::Remove;
+					File::Remove::remove( \1, Padre::Constant::CONFIG_DIR() );
+					error("Configuration directory reset");
+				}
+			}
+			exit(1);
+		}
 
-	#	use Aspect;
-	#	aspect( 'NYTProf',
-	#		call qr/^Padre::/ &
-	#		call qr/\b(?:refresh|update)\w*\z/ & !
-	#		call qr/^Padre::(?:Locker|Wx::Progress)::/
-	#	);
+		# Handle other generic errors
+		my $message = $@;
+		$message =~ s/ at .*?line.*$//;
+		error("Major Startup Error: '$message'");
+		exit(1);
+	}
 }
 
 # Build the application
@@ -185,12 +206,43 @@ my $ide = Padre->new(
 	session        => $SESSION,
 	actionqueue    => $ACTIONS,
 	startup_locale => $LOCALE,
-) or die "Failed to create Padre instance";
+) or die 'Failed to create Padre instance';
 
 # Start the application
 $ide->run;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+
+
+
+
+######################################################################
+# Support Functions
+
+sub message {
+	my $message = shift;
+	if ( WIN32 ) {
+		# No console under wperl, so use native Win32 messaging
+		require Win32;
+		Win32::MsgBox($message, 0, "Padre"); 
+	} else {
+		print $message . "\n";
+	}
+	return 1;
+}
+
+sub error {
+	my $message = shift;
+	if ( WIN32 ) {
+		# No console under wperl, so use native Win32 messaging
+		require Win32;
+		Win32::MsgBox($message, 0, "Padre"); 
+	} else {
+		print STDERR $message . "\n";
+	}
+	return 1;
+}
+
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

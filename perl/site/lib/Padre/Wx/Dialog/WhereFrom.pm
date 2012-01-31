@@ -6,7 +6,7 @@ use warnings;
 use Padre::Role::Task         ();
 use Padre::Wx::FBP::WhereFrom ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Role::Task
 	Padre::Wx::FBP::WhereFrom
@@ -44,7 +44,7 @@ sub run {
 	my $config = $self->config;
 
 	# Show the dialog
-	if ( $self->ShowModal == Wx::wxID_OK ) {
+	if ( $self->ShowModal == Wx::ID_OK ) {
 
 		# Fire and forget the HTTP request to the server
 		$self->task_request(
@@ -66,7 +66,7 @@ sub run {
 1;
 
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

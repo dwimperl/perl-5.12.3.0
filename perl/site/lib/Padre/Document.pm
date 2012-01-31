@@ -1,7 +1,5 @@
 package Padre::Document;
 
-=pod
-
 =head1 NAME
 
 Padre::Document - Padre Document API
@@ -124,20 +122,71 @@ or to set it to "Default by extension".
 use 5.008;
 use strict;
 use warnings;
-use Carp ();
-use File::Spec 3.21 (); # 3.21 needed for volume-safe abs2rel
-use File::Temp       ();
-use Params::Util     ();
-use Padre::Constant  ();
-use Padre::Current   ();
-use Padre::Util      ();
-use Padre::Wx        ();
-use Padre::MimeTypes ();
-use Padre::File      ();
+use Carp                    ();
+use File::Spec          3.2 (); # 3.21 needed for volume-safe abs2rel
+use File::Temp              ();
+use Params::Util            ();
+use Wx::Scintilla::Constant ();
+use Padre::Constant         ();
+use Padre::Current          ();
+use Padre::Util             ();
+use Padre::Wx               ();
+use Padre::MIME             ();
+use Padre::File             ();
 use Padre::Logger;
 
-our $VERSION    = '0.90';
-our $COMPATIBLE = '0.89';
+our $VERSION    = '0.94';
+our $COMPATIBLE = '0.91';
+
+
+
+
+
+######################################################################
+# Basic Language Support
+
+my %COMMENT_LINE_STRING = (
+	'text/x-abc'                => '\\',
+	'text/x-actionscript'       => '//',
+	'text/x-adasrc'             => '--',
+	'text/x-asm'                => '#',
+	'text/x-bat'                => 'REM',
+	'application/x-bibtex'      => '%',
+	'application/x-bml'         => [ '<?_c', '_c?>' ],
+	'text/x-csrc'               => '//',
+	'text/x-cobol'              => '      *',
+	'text/x-config'             => '#',
+	'text/x-csharp'             => '//',
+	'text/css'                  => [ '/*', '*/' ],
+	'text/x-c++src'             => '//',
+	'text/x-eiffel'             => '--',
+	'text/x-forth'              => '\\',
+	'text/x-fortran'            => '!',
+	'text/x-haskell'            => '--',
+	'text/html'                 => [ '<!--', '-->' ],
+	'application/javascript'    => '//',
+	'application/x-latex'       => '%',
+	'text/x-java'               => '//',
+	'application/x-lisp'        => ';',
+	'text/x-lua'                => '--',
+	'text/x-makefile'           => '#',
+	'text/x-matlab'             => '%',
+	'text/x-pascal'             => [ '{', '}' ],
+	'application/x-perl'        => '#',
+	'application/x-perl6'       => '#',
+	'text/x-perltt'             => [ '<!--', '-->' ],
+	'text/x-perlxs'             => '//',
+	'application/x-php'         => '#',
+	'text/x-pod'                => '#',
+	'text/x-python'             => '#',
+	'application/x-ruby'        => '#',
+	'application/x-shellscript' => '#',
+	'text/x-sql'                => '--',
+	'application/x-tcl'         => [ 'if 0 {', '}' ],
+	'text/vbscript'             => "'",
+	'text/xml'                  => [ '<!--', '-->' ],
+	'text/x-yaml'               => '#',
+);
 
 
 
@@ -183,6 +232,7 @@ use Class::XSAccessor {
 		editor       => 'editor',
 		timestamp    => 'timestamp',
 		mimetype     => 'mimetype',
+		encoding     => 'encoding',
 		errstr       => 'errstr',
 		tempfile     => 'tempfile',
 		highlighter  => 'highlighter',
@@ -192,6 +242,7 @@ use Class::XSAccessor {
 		set_editor       => 'editor',
 		set_timestamp    => 'timestamp',
 		set_mimetype     => 'mimetype',
+		set_encoding     => 'encoding',
 		set_newline_type => 'newline_type',
 		set_errstr       => 'errstr',
 		set_tempfile     => 'tempfile',
@@ -200,9 +251,7 @@ use Class::XSAccessor {
 	},
 };
 
-=pod
-
-=head2 C<new>
+=head2 new
 
   my $doc = Padre::Document->new(
       filename => $file,
@@ -247,7 +296,7 @@ sub new {
 
 			# Test script must be able to pass an alternate config object
 			# NOTE: Since when do we support per-document configuration objects?
-			my $config = $self->{config} || $self->current->config;
+			my $config = $self->{config} || $self->config;
 			if ( defined( $self->{file}->size ) and ( $self->{file}->size > $config->editor_file_size_limit ) ) {
 				my $ret = Wx::MessageBox(
 					sprintf(
@@ -259,10 +308,10 @@ sub new {
 						_commafy( $config->editor_file_size_limit )
 					),
 					Wx::gettext("Warning"),
-					Wx::wxYES_NO | Wx::wxCENTRE,
+					Wx::YES_NO | Wx::CENTRE,
 					$self->current->main,
 				);
-				if ( $ret != Wx::wxYES ) {
+				if ( $ret != Wx::YES ) {
 					return;
 				}
 			}
@@ -305,9 +354,8 @@ sub rebless {
 	# to the the base class,
 	# This isn't exactly the most elegant way to do this, but will
 	# do for a first implementation.
-	my $mime_type = $self->mimetype or return;
-	my $class = Padre::MimeTypes->get_mime_class($mime_type) || __PACKAGE__;
-	TRACE("Reblessing to mimetype: '$class'") if DEBUG;
+	my $class = $self->mime->document;
+	TRACE("Reblessing to mimetype class: '$class'") if DEBUG;
 	if ($class) {
 		unless ( $class->VERSION ) {
 			eval "require $class;";
@@ -316,20 +364,10 @@ sub rebless {
 		bless $self, $class;
 	}
 
-	my $module   = Padre::MimeTypes->get_current_highlighter_of_mime_type($mime_type);
-	my $filename = '';                                                                # Not undef
-	$filename = $self->{file}->filename
-		if defined( $self->{file} )
-			and defined( $self->{file}->{filename} );
-	if ( not $module ) {
-		$self->current->main->error(
-			sprintf(
-				Wx::gettext("No module mime_type='%s' filename='%s'"),
-				$mime_type, $filename
-			)
-		);
-	}
-	$self->set_highlighter($module);
+	require Padre::Wx::Scintilla;
+	$self->set_highlighter(
+		Padre::Wx::Scintilla->highlighter($self)
+	);
 
 	return;
 }
@@ -338,9 +376,49 @@ sub current {
 	Padre::Current->new( document => $_[0] );
 }
 
-sub lexer_keywords {
-	return [];
+sub config {
+	$_[0]->{config} or $_[0]->current->config
 }
+
+sub mime {
+	Padre::MIME->find($_[0]->mimetype);
+}
+
+# Abstract methods, each subclass should implement it
+# TO DO: Clearly this isn't ACTUALLY abstract (since they exist)
+
+sub scintilla_word_chars {
+	return '';
+}
+
+sub scintilla_key_words {
+	require Padre::Wx::Scintilla;
+	Padre::Wx::Scintilla->keywords( $_[0]->mimetype );
+}
+
+sub get_calltip_keywords {
+	return {};
+}
+
+sub get_function_regex {
+	return '';
+}
+
+#
+# $doc->get_comment_line_string;
+#
+# this is of course dependant on the language, and thus it's actually
+# done in the subclasses. however, we provide base empty methods in
+# order for padre not to crash if user wants to un/comment lines with
+# a document type that did not define those methods.
+#
+# TO DO Remove this base method
+sub get_comment_line_string {
+	my $self = shift;
+	my $mime = $self->mimetype or return;
+	$COMMENT_LINE_STRING{$mime} or return;
+}
+
 
 
 
@@ -365,29 +443,27 @@ sub DESTROY {
 
 sub colourize {
 	my $self   = shift;
-	my $lexer  = $self->lexer;
 	my $editor = $self->editor;
+	require Padre::Wx::Scintilla;
+	my $lexer  = Padre::Wx::Scintilla->lexer( $self->mimetype );
 	$editor->SetLexer($lexer);
 	TRACE("colourize called") if DEBUG;
 
 	$editor->remove_color;
-	if ( $lexer == Wx::wxSTC_LEX_CONTAINER ) {
+	if ( $lexer == Wx::Scintilla::Constant::SCLEX_CONTAINER ) {
 		$self->colorize;
 	} else {
 		TRACE("Colourize is being called") if DEBUG;
 		$editor->Colourise( 0, $editor->GetLength );
+		TRACE("Colourize completed") if DEBUG;
 	}
 }
 
 sub colorize {
-	my $self = shift;
-	TRACE("colorize called") if DEBUG;
-
+	my $self   = shift;
 	my $module = $self->highlighter;
-	TRACE("module: '$module'") if DEBUG;
-	if ( $module eq 'stc' ) {
-
-		#TO DO sometime this happens when I open Padre with several file
+	unless ( $module ) {
+		# TO DO sometime this happens when I open Padre with several file
 		# I think this can be somehow related to the quick (or slow ?) switching of
 		# what is the current document while the code is still running.
 		# for now I hide the warnings as this would just frighten people and the
@@ -402,7 +478,8 @@ sub colorize {
 	unless ( $module->can('colorize') ) {
 		eval "use $module";
 		if ($@) {
-			Carp::cluck( "Could not load module '$module' for file '" . ( $self->{file}->filename || '' ) . "'\n" );
+			my $name = $self->{file} ? $self->{file}->filename : $self->get_title;
+			Carp::cluck( "Could not load module '$module' for file '$name'\n" );
 			return;
 		}
 	}
@@ -421,16 +498,14 @@ sub default_newline_type {
 	my $self = shift;
 
 	# Very ugly hack to make the test script work
-	if ( $0 =~ /t.70\-document\.t/ ) {
+	if ( $0 =~ /t.70_document\.t/ ) {
 		return Padre::Constant::NEWLINE;
 	}
 
-	$self->current->config->default_line_ending;
+	$self->config->default_line_ending;
 }
 
-=pod
-
-=head2 C<error>
+=head2 error
 
     $document->error( $msg );
 
@@ -498,6 +573,18 @@ sub is_unused {
 	return '';
 }
 
+sub is_readonly {
+	my $self = shift;
+
+	my $file = $self->file;
+	return 0 unless defined($file);
+
+	# Fill the cache if it's empty and assume read-write as a default
+	$self->{readonly} ||= $self->file->readonly || 0;
+
+	return $self->{readonly};
+}
+
 # Returns true if file has changed on the disk
 # since load time or the last time we saved it.
 # Check if the file on the disk has changed
@@ -530,11 +617,9 @@ sub timestamp_now {
 	return $file->mtime;
 }
 
-=pod
+=head2 load_file
 
-=head2 C<load_file>
-
- $doc->load_file;
+    $doc->load_file;
 
 Loads the current file.
 
@@ -581,9 +666,8 @@ sub load_file {
 
 	# if guess encoding fails then use 'utf-8'
 	require Padre::Locale;
+	require Encode;
 	$self->{encoding} = Padre::Locale::encoding_from_string($content);
-
-	#warn $self->{encoding};
 	$content = Encode::decode( $self->{encoding}, $content );
 
 	# Determine new line type using file content.
@@ -597,7 +681,7 @@ sub load_file {
 	return 1;
 }
 
-# New line type can be one of these values:
+# New line type acan be one of these values:
 # WIN, MAC (for classic Mac) or UNIX (for Mac OS X and Linux/*BSD)
 # Special cases:
 # 'Mixed' for mixed end of lines,
@@ -619,9 +703,7 @@ sub newline {
 	return "\n";
 }
 
-=pod
-
-=head2 C<autocomplete_matching_char>
+=head2 autocomplete_matching_char
 
 The first argument needs to be a reference to the editor this method should
 work on.
@@ -764,11 +846,11 @@ sub save_file {
 				$file->{filename}
 			),
 			Wx::gettext("Save Warning"),
-			Wx::wxYES_NO | Wx::wxCENTRE,
+			Wx::YES_NO | Wx::CENTRE,
 			$current->main,
 		);
 
-		return 0 if $ret == Wx::wxYES;
+		return 0 if $ret == Wx::YES;
 	}
 
 	# Not set when first time to save
@@ -805,9 +887,7 @@ sub save_file {
 	return 1;
 }
 
-=pod
-
-=head2 C<write>
+=head2 write
 
 Writes the document to an arbitrary local file using the same semantics
 as when we do a full file save.
@@ -837,9 +917,7 @@ sub write {
 	$file->write( $text, $encoding );
 }
 
-=pod
-
-=head2 C<reload>
+=head2 reload
 
 Reload the current file discarding changes in the editor.
 
@@ -889,17 +967,45 @@ sub remove_tempfile {
 #####################################################################
 # Basic Content Manipulation
 
+=head2 text_get
+
+  my $string = $document->text_get;
+
+The C<text_get> method returns the content of the document as a simple
+plain scalar string.
+
+=cut
+
 sub text_get {
 	$_[0]->editor->GetText;
 }
+
+=head2 text_length
+
+  my $chars = $document->GetLength;
+
+The C<text_length> method returns the size of the document in characters.
+
+Note that this is the character length of the document and not the byte
+size of the document. The byte size of the file when saved is likely to
+differ from the character size.
+
+=cut
 
 sub text_length {
 	$_[0]->editor->GetLength;
 }
 
-sub text_set {
-	$_[0]->editor->SetText( $_[1] );
-}
+=head2 text_like
+
+  my $cool = $document->text_like( qr/(?:robot|ninja|pirate)/i );
+
+The C<text_like> method takes a regular expression and tests the document
+to see if it matches.
+
+Returns true if the document matches the regular express, or false if not.
+
+=cut
 
 sub text_like {
 	my $self = shift;
@@ -919,37 +1025,97 @@ sub text_with_one_nl {
 	return $text;
 }
 
+=head2 text_set
+
+  $document->text_set("This is an\nentirely new document");
+
+The C<text_set> method takes a content string and does a complete atomic
+replacement of the document with new and entirely different content.
+
+It uses a simple and direct approach which is fast but is not aware of
+context such as the current cursor position and the undo buffer.
+
+As a result, it is only appropriate for use when a document is being
+changed for new content that is completely and utterly different.
+
+To change a document to a new version that is similar to the old one
+(such as when you are doing refactoring tasks) the alternative
+L</text_replace> or ideally L</text_delta> should be used instead.
+
+=cut
+
+sub text_set {
+	my $self   = shift;
+	my $editor = $self->editor or return;
+	$editor->SetText(shift);
+	$editor->refresh_notebook;
+	return 1;
+}
+
+=head2 text_replace
+
+  $document->text_replace("This is a\nmodified document");
+
+The C<text_replace> method takes content as a string and incrementally
+modifies the current document to look like the new content.
+
+The logic for this process is done with a L<Padre::Delta> object created
+using L<Algorithm::Diff> and is run in the foreground. Because this blocks
+the entire IDE it is considered relatively slow and expensive, and is
+particularly bad for large documents.
+
+But because it is by the most simple way of applying changes to a document
+and does not require locks or background tasks, this method has a role to
+play in early implementations of new logic.
+
+Once functionality using C<text_replace> has matured, you should consider
+moving it into a background task which emits a L<Padre::Delta> and then
+use C<text_delta> to apply the change to the editor in the foreground.
+
+Returns true if changes were made to the current document, or false if the
+new document is identical to the existing one and no change was needed.
+
+=cut
+
+sub text_replace {
+	my $self = shift;
+	my $to   = shift;
+	my $from = $self->text_get;
+	return 0 if $to eq $from;
+
+	# Generate a delta and apply it
+	require Padre::Delta;
+	my $delta = Padre::Delta->from_scalars( \$from => \$to );
+	return $self->text_delta($delta);
+}
+
+=head2 text_delta
+
+The C<text_delta> method takes a single L<Padre::Delta> object as a
+parameter and applies it to the current document.
+
+Returns true if the document was changed, false if passed the null delta
+and no changes were needed, or C<undef> if not passed a L<Padre::Delta>.
+
+=cut
+
+sub text_delta {
+	my $self  = shift;
+	my $delta = Params::Util::_INSTANCE( shift, 'Padre::Delta' ) or return;
+	return 0 if $delta->null;
+
+	my $editor = $self->editor;
+	$delta->to_editor($editor);
+	$editor->refresh_notebook;
+	return 1;
+}
+
 
 
 
 
 #####################################################################
 # GUI Integration Methods
-
-# Determine the Scintilla lexer to use
-sub lexer {
-	my $self = shift;
-
-	# this should never happen as now we set mime-type on everything
-	return Wx::wxSTC_LEX_AUTOMATIC unless $self->mimetype;
-
-	my $highlighter = $self->highlighter;
-	if ( not $highlighter ) {
-		$self->current->main->error(
-			sprintf(
-				Wx::gettext("no highlighter for mime-type '%s' using stc"),
-				$self->mimetype
-			)
-		);
-		$highlighter = 'stc';
-	}
-	TRACE("The highlighter is '$highlighter'") if DEBUG;
-	return Wx::wxSTC_LEX_CONTAINER if $highlighter ne 'stc';
-	return Wx::wxSTC_LEX_AUTOMATIC unless defined Padre::MimeTypes->get_lexer( $self->mimetype );
-
-	TRACE( 'STC Lexer will be based on mime type "' . $self->mimetype . '"' ) if DEBUG;
-	return Padre::MimeTypes->get_lexer( $self->mimetype );
-}
 
 # What should be shown in the notebook tab
 sub get_title {
@@ -972,7 +1138,7 @@ sub get_title {
 # TO DO: experimental
 sub get_indentation_style {
 	my $self   = shift;
-	my $config = $self->current->config;
+	my $config = $self->config;
 
 	# TO DO: (document >) project > config
 
@@ -992,35 +1158,7 @@ sub get_indentation_style {
 	return $style;
 }
 
-=head2 C<set_indentation_style>
-
-Given a hash reference with the keys C<use_tabs>,
-C<tabwidth>, and C<indentwidth>, set the document's editor's
-indentation style.
-
-Without an argument, falls back to what C<get_indentation_style>
-returns.
-
-=cut
-
-sub set_indentation_style {
-	my $self   = shift;
-	my $style  = shift || $self->get_indentation_style;
-	my $editor = $self->editor;
-
-	# The display width of literal tab characters (ne "indentation width"!)
-	$editor->SetTabWidth( $style->{tabwidth} );
-
-	# The actual indentation width in COLUMNS!
-	$editor->SetIndent( $style->{indentwidth} );
-
-	# Use tabs for indentation where possible?
-	$editor->SetUseTabs( $style->{use_tabs} );
-
-	return ();
-}
-
-=head2 C<get_indentation_level_string>
+=head2 get_indentation_level_string
 
 Calculates the string that should be used to indent a given
 number of levels for this document.
@@ -1058,7 +1196,7 @@ sub get_indentation_level_string {
 	return $indent;
 }
 
-=head2 C<event_on_char>
+=head2 event_on_char
 
 NOT IMPLEMENTED IN THE BASE CLASS
 
@@ -1074,13 +1212,14 @@ Returns nothing.
 
 Cf. C<Padre::Document::Perl> for an example.
 
-=head2 C<event_on_right_down>
+=head2 event_on_context_menu
 
 NOT IMPLEMENTED IN THE BASE CLASS
 
-This method - if implemented - is called when a user right-clicks in an
-editor to open a context menu and after the standard context menu was
-created and populated in the C<Padre::Wx::Editor> class.
+This method - if implemented - is called when a user triggers the context menu
+(either by right-click or the context menu key or Shift+F10) in an editor after
+the standard context menu was created and populated in the C<Padre::Wx::Editor>
+class.
 By manipulating the menu document classes may provide the user with
 additional options.
 
@@ -1089,7 +1228,7 @@ context menu (C<Wx::Menu>) and the event.
 
 Returns nothing.
 
-=head2 C<event_on_left_up>
+=head2 event_on_left_up
 
 NOT IMPLEMENTED IN THE BASE CLASS
 
@@ -1169,13 +1308,14 @@ sub filename_relative {
 # Maybe we need to remove this sub.
 sub guess_mimetype {
 	my $self = shift;
-	Padre::MimeTypes->guess_mimetype(
-		$self->{original_content},
-		$self->file,
+	Padre::MIME->detect(
+		text  => $self->{original_content},
+		file  => $self->file,
+		perl6 => $self->config->lang_perl6_auto_detection,
 	);
 }
 
-=head2 C<guess_indentation_style>
+=head2 guess_indentation_style
 
 Automatically infer the indentation style of the document using
 L<Text::FindIndent>.
@@ -1204,7 +1344,7 @@ sub guess_indentation_style {
 	}
 
 	my $style;
-	my $config = $self->current->config;
+	my $config = $self->config;
 	if ( $indentation =~ /^t\d+/ ) { # we only do ONE tab
 		$style = {
 			use_tabs    => 1,
@@ -1236,7 +1376,7 @@ sub guess_indentation_style {
 	return $style;
 }
 
-=head2 C<guess_filename>
+=head2 guess_filename
 
   my $name = $document->guess_filename
 
@@ -1266,7 +1406,7 @@ sub guess_filename {
 	return undef;
 }
 
-=head2 C<guess_subpath>
+=head2 guess_subpath
 
   my $subpath = $document->guess_subpath;
 
@@ -1298,35 +1438,8 @@ sub functions {
 	$task->find( $self->text_get );
 }
 
-# Abstract methods, each subclass should implement it
-# TO DO: Clearly this isn't ACTUALLY abstract (since they exist)
-
-sub keywords {
-	return {};
-}
-
-sub get_function_regex {
-	return '';
-}
-
-sub stc_word_chars {
-	return '';
-}
-
 sub pre_process {
 	return 1;
-}
-
-sub is_readonly {
-	my $self = shift;
-
-	my $file = $self->file;
-	return 0 unless defined($file);
-
-	# Fill the cache if it's empty and assume read-write as a default
-	$self->{readonly} ||= $self->file->readonly || 0;
-
-	return $self->{readonly};
 }
 
 sub selection_stats {
@@ -1387,16 +1500,35 @@ sub stats {
 #####################################################################
 # Document Manipulation Methods
 
-#
-# $doc->comment_lines_str;
-#
-# this is of course dependant on the language, and thus it's actually
-# done in the subclasses. however, we provide base empty methods in
-# order for padre not to crash if user wants to un/comment lines with
-# a document type that did not define those methods.
-#
-# TO DO Remove this base method
-sub comment_lines_str { }
+# Apply an arbitrary transform
+sub transform {
+	my $self   = shift;
+	my %args   = @_;
+	my $driver = Params::Util::_DRIVER( delete $args{class}, 'Padre::Transform' ) or return;
+	my $editor = $self->editor;
+	my $input  = $editor->GetText;
+	my $delta  = $driver->new(%args)->scalar_delta(\$input);
+	$delta->to_editor($editor);
+	return 1;
+}
+
+# Delete all leading spaces.
+# Passes through to the editor by default, and is only defined in the
+# document class so that document classes can overload and do special stuff.
+sub delete_leading_spaces {
+	my $self = shift;
+	my $editor = $self->editor or return;
+	return $editor->delete_leading_spaces;
+}
+
+# Delete all trailing spaces.
+# Passes through to the editor by default, and is only defined in the
+# document class so that document classes can overload and do special stuff.
+sub delete_trailing_spaces {
+	my $self = shift;
+	my $editor = $self->editor or return;
+	return $editor->delete_trailing_spaces;
+}
 
 
 
@@ -1471,7 +1603,7 @@ sub _commafy {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

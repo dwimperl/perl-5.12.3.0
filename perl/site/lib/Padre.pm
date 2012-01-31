@@ -13,10 +13,9 @@ use Carp          ();
 use Cwd           ();
 use File::Spec    ();
 use File::HomeDir ();
-use List::Util    ();
 use Scalar::Util  ();
+use List::Util    ();
 use YAML::Tiny    ();
-use Class::Unload ();
 use DBI           ();
 use DBD::SQLite   ();
 
@@ -24,7 +23,7 @@ use DBD::SQLite   ();
 # TO DO: Bug report dispatched. Likely to be fixed in 0.77.
 use version ();
 
-our $VERSION    = '0.90';
+our $VERSION    = '0.94';
 our $COMPATIBLE = '0.81';
 
 # Since everything is used OO-style, we will be require'ing
@@ -40,14 +39,12 @@ use Class::XSAccessor 1.05 {
 		original_cwd    => 'original_cwd',
 		opts            => 'opts',
 		config          => 'config',
-		wx              => 'wx',
 		task_manager    => 'task_manager',
 		plugin_manager  => 'plugin_manager',
 		project_manager => 'project_manager',
 	},
 	accessors => {
 		actions     => 'actions',
-		wizards     => 'wizards',
 		shortcuts   => 'shortcuts',
 		instance_id => 'instance_id',
 	},
@@ -60,7 +57,7 @@ sub import {
 
 	# Find the location of Padre.pm
 	my $padre = $INC{'Padre.pm'};
-	my $parent = substr( $padre, 0, length($padre) - 3 );
+	my $parent = substr( $padre, 0, -3 );
 
 	# Find everything under Padre:: with a matching version,
 	# which almost certainly means it is part of the main Padre release.
@@ -141,12 +138,9 @@ sub new {
 	# Load (and sync if needed) the configuration
 	$self->{config} = Padre::Config->read;
 
-	# Actions and keyboard shortcuts registries
+	# Initialise our registries
 	$self->actions(   {} );
 	$self->shortcuts( {} );
-
-	# Wizard registry
-	$self->wizards( {} );
 
 	# Create the project manager
 	require Padre::ProjectManager;
@@ -158,19 +152,25 @@ sub new {
 
 	# Create the main window
 	require Padre::Wx::App;
-	$self->{wx} = Padre::Wx::App->create($self);
+	my $wx = Padre::Wx::App->create($self);
 
 	# Create the task manager
 	require Padre::TaskManager;
 	$self->{task_manager} = Padre::TaskManager->new(
 		threads => 1,
-		conduit => $self->wx->conduit,
+		maximum => $self->config->threads_maximum,
+		conduit => $wx->conduit,
 	);
 
 	# Startup completed, let go of the database
 	Padre::DB->commit;
 
 	return $self;
+}
+
+sub wx {
+	no warnings 'once';
+	$Wx::wxTheApp;
 }
 
 sub run {
@@ -239,8 +239,9 @@ sub run {
 
 	TRACE("Killing the splash screen") if DEBUG;
 	if ($Padre::Startup::VERSION) {
+		require Padre::Unload;
 		Padre::Startup->destroy_splash;
-		Class::Unload->unload('Padre::Startup');
+		Padre::Unload::unload('Padre::Startup');
 	}
 
 	TRACE("Processing the action queue") if DEBUG;
@@ -259,10 +260,6 @@ sub run {
 
 	TRACE("Switching into runtime mode") if DEBUG;
 	$self->wx->MainLoop;
-
-	# All shutdown procedures complete.
-	# Do some final cleaning up.
-	$self->{wx} = undef;
 }
 
 # Save the YAML configuration file
@@ -541,7 +538,7 @@ is the L<Wx::App> subclass. Does not really do much.
 
 This is the main Find dialog
 
-=item L<Padre::Wx::Dialog::FindFast>
+=item L<Padre::Wx::Panel::FindFast>
 
 This is the newer Firefox like inline search box.
 
@@ -558,12 +555,11 @@ The code for drag and drop
 =item L<Padre::Wx::Editor>
 
 holds an editor text control instance (one for each buffer/file).
-This is a subclass of L<Wx::StyledTextCtrl> also known as C<STC> or
-Scintilla.
+This is a subclass of L<Wx::Scintilla::TextCtrl> also known as Scintilla.
 
-=item L<Padre::Wx::History::ComboBox>
+=item L<Padre::Wx::ComboBox::History>
 
-=item L<Padre::Wx::History::TextEntryDialog>
+=item L<Padre::Wx::TextEntryDialog::History>
 
 =item L<Padre::Wx::Main>
 
@@ -610,14 +606,11 @@ Please submit your bugs at L<http://padre.perlide.org/trac/>
 
 =head1 SUPPORT
 
-I hope the L<http://www.perlmonks.org/> will be ready to take
-upon themselves supporting this application.
-
 See also L<http://padre.perlide.org/contact.html>
 
 =head1 COPYRIGHT
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 L<http://padre.perlide.org/>
 
 =head1 LICENSE
@@ -819,7 +812,7 @@ Tatsuhiko Miyagawa for consulting on our I18N and L10N support.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

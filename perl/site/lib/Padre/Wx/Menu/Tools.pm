@@ -13,7 +13,7 @@ use Padre::Wx       ();
 use Padre::Wx::Menu ();
 use Padre::Current  ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Wx::Menu';
 
 
@@ -33,6 +33,14 @@ sub new {
 	# Add additional properties
 	$self->{main} = $main;
 
+	# Differences window
+	if(Padre::Feature::DIFF_WINDOW) {
+		$self->add_menu_action(
+			'tools.diff_window',
+		);
+		$self->AppendSeparator;
+	}
+
 	# User Preferences
 	$self->add_menu_action(
 		'tools.preferences',
@@ -44,11 +52,6 @@ sub new {
 			'tools.sync',
 		);
 	}
-
-	# Key bindings
-	$self->add_menu_action(
-		'tools.keys',
-	);
 
 	$self->AppendSeparator;
 
@@ -63,11 +66,6 @@ sub new {
 		-1,
 		Wx::gettext('&Module Tools'),
 		$modules,
-	);
-
-	$self->add_menu_action(
-		$modules,
-		'plugins.install_cpan',
 	);
 
 	$self->add_menu_action(
@@ -92,6 +90,10 @@ sub new {
 	# Link to the Plugin Manager
 	$self->add_menu_action(
 		'plugins.plugin_manager',
+	);
+
+	$self->add_menu_action(
+		'plugins.plugin_manager2',
 	);
 
 	# Create the plugin tools submenu
@@ -156,7 +158,7 @@ sub add {
 	my $need    = 1;
 	my $manager = Padre->ide->plugin_manager;
 	foreach my $module ( $manager->plugin_order ) {
-		my $plugin = $manager->_plugin($module);
+		my $plugin = $manager->handle($module);
 		next unless $plugin->enabled;
 
 		# Generate the menu for the plugin
@@ -208,7 +210,7 @@ sub refresh {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

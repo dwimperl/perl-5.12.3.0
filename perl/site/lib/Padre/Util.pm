@@ -26,18 +26,18 @@ use strict;
 use warnings;
 use Carp            ();
 use Exporter        ();
-use FindBin         ();
 use Cwd             ();
 use File::Spec      ();
 use List::Util      ();
 use Padre::Constant (); ### NO other Padre:: dependencies
+### Seriously guys, I fscking mean it.
 
 # If we make $VERSION an 'our' variable the parse_variable() function breaks
 use vars qw{ $VERSION $COMPATIBLE };
 
 BEGIN {
-	$VERSION    = '0.90';
-	$COMPATIBLE = '0.81';
+	$VERSION    = '0.94';
+	$COMPATIBLE = '0.93';
 }
 
 our @ISA       = 'Exporter';
@@ -56,18 +56,6 @@ our $DISTRO    = undef;
 #use constant WIN32 => !!( $^O eq 'MSWin32' );
 #use constant MAC   => !!( $^O eq 'darwin' );
 #use constant UNIX => !( WIN32 or MAC );
-
-# Padre targets the three largest Wx backends
-# 1. Win32 Native
-# 2. Mac OS X Native
-# 3. Unix GTK
-# The following defined reusable constants for these platforms,
-# suitable for use in Wx platform-specific adaptation code.
-# Currently (and a bit naively) we align these to the platforms.
-# NOTE: They're now in Padre::Constant, if you miss them, please use them from there
-#use constant WXWIN32 => WIN32;
-#use constant WXMAC   => MAC;
-#use constant WXGTK   => UNIX;
 
 # The local newline type
 # NOTE: It's now in Padre::Constant, if you miss them, please use it from there
@@ -268,68 +256,6 @@ sub parse_variable {
 
 =pod
 
-=head2 C<get_matches>
-
-Parameters:
-
-=over
-
-=item * The text in which we need to search
-
-=item * The regular expression
-
-=item * The offset within the text where we the last match started so the next
-forward match must start after this.
-
-=item * The offset within the text where we the last match ended so the next
-backward match must end before this.
-
-=item * backward bit (1 = search backward, 0 = search forward) - Optional. Defaults to 0.
-
-=back
-
-=cut
-
-sub get_matches {
-	my ( $text, $regex, $from, $to, $backward ) = @_;
-	die 'missing parameters' if @_ < 4;
-
-	require Encode;
-	$text  = Encode::encode( 'utf-8', $text );
-	$regex = Encode::encode( 'utf-8', $regex );
-
-	my @matches = ();
-	while ( $text =~ /$regex/mg ) {
-		my $e = pos($text);
-		unless ( defined($1) ) {
-			print STDERR 'WARNING (' . join( ",", map { $_ || ''; } ( caller(0) ) ) . "): $regex has no \$1 match\n";
-			next;
-		}
-		my $s = $e - length($1);
-		push @matches, [ $s, $e ];
-	}
-
-	my $pair;
-	if ($backward) {
-		$pair = List::Util::first { $to > $_->[1] } reverse @matches;
-		if ( not $pair and @matches ) {
-			$pair = $matches[-1];
-		}
-	} else {
-		$pair = List::Util::first { $from < $_->[0] } @matches;
-		if ( not $pair and @matches ) {
-			$pair = $matches[0];
-		}
-	}
-
-	my ( $start, $end );
-	( $start, $end ) = @$pair if $pair;
-
-	return ( $start, $end, @matches );
-}
-
-=pod
-
 =head2 C<_T>
 
 The C<_T> function is used for strings that you do not want to translate
@@ -422,6 +348,7 @@ sub share {
 	my $plugin = shift;
 
 	if ( $ENV{PADRE_DEV} ) {
+		require FindBin;
 		my $root = File::Spec->rel2abs(
 			File::Spec->catdir(
 				$FindBin::Bin,
@@ -443,22 +370,6 @@ sub share {
 		return $plugin_dir;
 	}
 
-	#    if ( defined $ENV{PADRE_PAR_PATH} ) {
-	#        # File::ShareDir new style path
-	#        my $path = File::Spec->catdir(
-	#            $ENV{PADRE_PAR_PATH},
-	#            'inc', 'auto', 'share', 'dist', 'Padre'
-	#        );
-	#        return $path if -d $path;
-	#
-	#        # File::ShareDir old style path
-	#        $path = File::Spec->catdir(
-	#            $ENV{PADRE_PAR_PATH},
-	#            'inc', 'share'
-	#        );
-	#        return $path if -d $path;
-	#    }
-
 	# Rely on automatic handling of everything
 	require File::ShareDir;
 	if ($plugin) {
@@ -477,8 +388,8 @@ sub sharefile {
 }
 
 sub splash {
-	my $original = Padre::Util::sharefile('padre-splash-ccnc.bmp');
-	return -f $original ? $original : Padre::Util::sharefile('padre-splash.bmp');
+	my $original = Padre::Util::sharefile('padre-splash-ccnc.png');
+	return -f $original ? $original : Padre::Util::sharefile('padre-splash.png');
 }
 
 sub find_perldiag_translations {
@@ -502,29 +413,6 @@ sub find_perldiag_translations {
 	return @tr;
 }
 
-### DEPRECATED
-sub get_project_rcs {
-	if ( $VERSION > 0.84 ) {
-		warn "Deprecated Padre::Util::get_project_rcs called by " . scalar caller();
-	}
-	require Padre::Current;
-	my $manager = Padre::Current->ide->project_manager;
-	my $project = $manager->from_root(shift) or return;
-	return $project->vcs;
-}
-
-### DEPRECATED
-sub get_project_dir {
-	if ( $VERSION > 0.84 ) {
-		warn "Deprecated Padre::Util::get_project_dir called by " . scalar caller();
-	}
-	require Padre::Current;
-	my $file    = shift or return;
-	my $manager = Padre::Current->ide->project_manager;
-	my $project = $manager->from_file($file) or return;
-	return $project->root;
-}
-
 
 
 
@@ -533,13 +421,10 @@ sub get_project_dir {
 # Logging and Debugging
 
 sub humanbytes {
-
-	my $Bytes = $_[0] || 0;
-
+	my $bytes = $_[0] || 0;
 	eval { require Format::Human::Bytes; };
-	return $Bytes if $@; # Doesn't look good, but works
-
-	return Format::Human::Bytes::base2( $Bytes, 1 );
+	return $bytes if $@; # Doesn't look good, but works
+	return Format::Human::Bytes::base2( $bytes, 1 );
 
 }
 
@@ -557,6 +442,161 @@ sub process_memory {
 	return;
 }
 
+=pod
+
+=head2 C<run_in_directory>
+
+    Padre::Util::run_in_directory( $command, $directory );
+
+Runs the provided C<command> in the C<directory>. On win32 platforms, executes
+the command to provide *true* background process executions without window
+popups on each execution. on non-win32 platforms, it runs a C<system>
+command.
+
+Returns 1 on success and 0 on failure.
+
+=cut
+
+sub run_in_directory {
+	my ( $cmd, $directory ) = @_;
+
+	# Make sure we execute from the correct directory
+	if (Padre::Constant::WIN32) {
+		require Padre::Util::Win32;
+		my $retval = Padre::Util::Win32::ExecuteProcessAndWait(
+			directory  => $directory,
+			file       => 'cmd.exe',
+			parameters => "/C $cmd",
+		);
+		return $retval ? 1 : 0;
+	} else {
+		require File::pushd;
+		my $pushd  = File::pushd::pushd($directory);
+		my $retval = system $cmd;
+		return ( $retval == 0 ) ? 1 : 0;
+	}
+}
+
+=pod
+
+=head2 C<run_in_directory_two>
+
+Plugin replacment for perl command qx{...} to avoid black lines in non *inux os
+
+	qx{...};
+	run_in_directory_two('...');
+
+optional parameters are dir and return type
+
+	run_in_directory_two('...', $dir);
+	run_in_directory_two('...', $dir, type);
+
+also
+
+	run_in_directory_two('...', type);
+
+return type 1 default, returns a string
+
+nb you might need to chomp result but thats for you.
+
+return type 0 hash_ref
+
+=over
+
+=item example 1,
+
+	Padre::Util::run_in_directory_two('svn --version --quiet');
+
+	"1.6.12
+	"
+
+=item example 2,
+
+	Padre::Util::run_in_directory_two('svn --version --quiet', 0);
+
+	\ {
+		error    "",
+		input    "svn --version --quiet",
+		output   "1.6.12
+	"
+	}
+
+=back
+
+=cut
+
+#######
+# function Padre::Util::run_in_directory_two
+#######
+sub run_in_directory_two {
+	my $cmd_line = shift;
+	my $location = shift;
+	my $return_option = shift;
+
+	if ( defined $location ) {
+		if ( $location =~ /\d/ ) {
+			$return_option = $location;
+			$location = undef;
+		}
+
+	}
+
+	my %ret_ioe;
+	$ret_ioe{input} = $cmd_line;
+
+	$cmd_line =~ m/((?:\w+)\s)/;
+	my $cmd_app = $1;
+
+	if ( defined $return_option ) {
+		$return_option = ( $return_option =~ m/[0|1|2]/ ) ? $return_option : 1;
+	} else {
+		$return_option = 1;
+	}
+
+	# Create a temporary file for standard output redirection
+	require File::Temp;
+	my $std_out = File::Temp->new( UNLINK => 1 );
+
+	# Create a temporary file for standard error redirection
+	my $std_err = File::Temp->new( UNLINK => 1 );
+
+	my $temp_dir = File::Temp->newdir();
+
+	my $directory;
+	if ( defined $location ) {
+		$directory = ($location) ? $location : $temp_dir;
+	} else {
+		$directory = $temp_dir;
+	}
+
+	my @cmd = (
+		$cmd_line,
+		'1>' . $std_out->filename,
+		'2>' . $std_err->filename,
+	);
+
+	# We need shell redirection (list context does not give that)
+	# Run command in directory
+	Padre::Util::run_in_directory( "@cmd", $directory );
+
+	# Slurp command standard input and output
+	$ret_ioe{output} = slurp($std_out->filename);
+	# chomp $ret_ioe{output};
+
+	# Slurp command standard error
+	$ret_ioe{error} = slurp($std_err->filename);
+
+	# chomp $ret_ioe{error};
+	if ( $ret_ioe{error} && ( $return_option eq 1 ) ) {
+		$return_option = 2;
+	}
+
+	return $ret_ioe{output} if ( $return_option eq 1 );
+	return $ret_ioe{error} if ( $return_option eq 2 );
+	return \%ret_ioe;
+
+}
+
 1;
 
 __END__
@@ -565,7 +605,7 @@ __END__
 
 =head1 COPYRIGHT
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -575,7 +615,7 @@ LICENSE file included with this module.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

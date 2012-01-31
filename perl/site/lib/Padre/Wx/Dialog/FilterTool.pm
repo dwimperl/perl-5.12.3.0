@@ -6,7 +6,7 @@ use warnings;
 use Padre::Wx       ();
 use Padre::Wx::Icon ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Wx::Dialog';
 
 use Class::XSAccessor {
@@ -28,9 +28,9 @@ sub new {
 		$parent,
 		-1,
 		Wx::gettext('Filter through tool'),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxDEFAULT_FRAME_STYLE | Wx::wxTAB_TRAVERSAL,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::DEFAULT_FRAME_STYLE | Wx::TAB_TRAVERSAL,
 	);
 	$self->SetIcon(Padre::Wx::Icon::PADRE);
 
@@ -101,10 +101,10 @@ sub _create {
 	my $self = shift;
 
 	# create sizer that will host all controls
-	my $box = Wx::BoxSizer->new(Wx::wxVERTICAL);
+	my $box = Wx::BoxSizer->new(Wx::VERTICAL);
 	my $sizer = Wx::GridBagSizer->new( 5, 5 );
 	$sizer->AddGrowableCol(1);
-	$box->Add( $sizer, 1, Wx::wxEXPAND | Wx::wxALL, 5 );
+	$box->Add( $sizer, 1, Wx::EXPAND | Wx::ALL, 5 );
 	$self->_sizer($sizer);
 
 	$self->_create_fields;
@@ -130,7 +130,7 @@ sub _create_fields {
 	my $lab1 = Wx::StaticText->new( $self, -1, Wx::gettext('Filter command:') );
 	my $combo = Wx::ComboBox->new( $self, -1, '' );
 	$sizer->Add( $lab1, Wx::GBPosition->new( 0, 0 ) );
-	$sizer->Add( $combo, Wx::GBPosition->new( 0, 1 ), Wx::GBSpan->new( 1, 3 ), Wx::wxEXPAND );
+	$sizer->Add( $combo, Wx::GBPosition->new( 0, 1 ), Wx::GBSpan->new( 1, 3 ), Wx::EXPAND );
 	$self->_combo($combo);
 
 }
@@ -148,8 +148,8 @@ sub _create_buttons {
 	my $sizer = $self->_sizer;
 
 	# the buttons
-	my $bs = Wx::Button->new( $self, Wx::wxID_OK,     Wx::gettext('Run') );
-	my $bc = Wx::Button->new( $self, Wx::wxID_CANCEL, Wx::gettext('Close') );
+	my $bs = Wx::Button->new( $self, Wx::ID_OK,     Wx::gettext('Run') );
+	my $bc = Wx::Button->new( $self, Wx::ID_CANCEL, Wx::gettext('Close') );
 	Wx::Event::EVT_BUTTON( $self, $bs, \&_on_butrun_clicked );
 	Wx::Event::EVT_BUTTON( $self, $bc, \&_on_butclose_clicked );
 	$sizer->Add( $bs, Wx::GBPosition->new( 2, 2 ) );
@@ -219,7 +219,7 @@ Request the dialog to be shown.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl 5 itself.
@@ -228,7 +228,7 @@ under the same terms as Perl 5 itself.
 =cut
 
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

@@ -88,7 +88,7 @@ use Carp         ();
 use Exporter     ();
 use Params::Util ();
 
-our $VERSION   = '0.90';
+our $VERSION   = '0.94';
 our @ISA       = 'Exporter';
 our @EXPORT_OK = '_CURRENT';
 
@@ -138,7 +138,7 @@ sub new {
 
 # Get the project from the document (and don't cache)
 sub project {
-	my $self = ref( $_[0] ) ? $_[0] : $_[0]->new;
+	my $self     = ref( $_[0] ) ? $_[0] : $_[0]->new;
 	my $document = $self->document;
 	if ( defined $document ) {
 		return $document->project;
@@ -149,7 +149,7 @@ sub project {
 
 # Get the text from the editor (and don't cache)
 sub text {
-	my $self = ref( $_[0] ) ? $_[0] : $_[0]->new;
+	my $self   = ref( $_[0] ) ? $_[0] : $_[0]->new;
 	my $editor = $self->editor;
 	if ( defined $editor ) {
 		return $editor->GetSelectedText;
@@ -398,7 +398,7 @@ Returns the selected text, or a null string if nothing is selected.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -408,7 +408,7 @@ LICENSE file included with this module.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Padre::Wx ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Wx::PlPopupTransientWindow';
 
 sub on_paint {
@@ -26,8 +26,8 @@ sub new {
 
 	#    my $panel =  Wx::Panel->new( $self, -1 );
 	#print "panel $panel\n";
-	#$panel->SetBackgroundColour(Wx::wxWHITE);
-	#    $self->SetBackgroundColour(Wx::wxWHITE);
+	#$panel->SetBackgroundColour(Wx::WHITE);
+	#    $self->SetBackgroundColour(Wx::WHITE);
 	#print "aa\n";
 	#    my $dialog = Wx::Dialog->new( $self, -1, "", [-1, -1], [550, 200]);
 	#print "d $dialog\n";
@@ -62,7 +62,7 @@ sub OnDismiss {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

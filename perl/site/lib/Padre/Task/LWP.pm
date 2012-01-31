@@ -26,10 +26,11 @@ Sending and receiving data via HTTP.
 use 5.008005;
 use strict;
 use warnings;
-use Params::Util ();
-use Padre::Task  ();
+use Padre::Constant ();
+use Params::Util    ();
+use Padre::Task     ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Task';
 
 use Class::XSAccessor {
@@ -100,6 +101,10 @@ of the HTTP call.
 
 =cut
 
+
+
+
+
 ######################################################################
 # Padre::Task Methods
 
@@ -139,22 +144,22 @@ sub run {
 		agent   => "Padre/$VERSION",
 		timeout => 60,
 	);
-	$useragent->env_proxy;
+	$useragent->env_proxy unless Padre::Constant::WIN32;
 
 	# Execute the request.
 	# It's not up to us to judge success or failure at this point,
 	# we just do the heavy lifting of the request itself.
-	$self->handle->status(
+	$self->tell_status(
 		join ' ', $method, $url, '...',
-	) if $self->running;
+	);
 
 	$self->{response} = $useragent->request($request);
 
-	$self->handle->status(
+	$self->tell_status(
 		join ' ', $method, $url, '-->',
 		$self->{response}->code,
 		$self->{response}->message,
-	) if $self->running;
+	);
 
 	# Remove the CODE references from the response.
 	# They aren't needed any more, and they won't survive
@@ -184,14 +189,14 @@ Steffen Mueller C<smueller@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl 5 itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

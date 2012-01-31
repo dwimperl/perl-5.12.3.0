@@ -30,33 +30,10 @@ From the main L<Padre> object, it can be accessed via the C<wx> method.
 use 5.008;
 use strict;
 use warnings;
-use threads;
-use threads::shared;
-use Wx                     ();
-use Padre::Wx::Frame::Null ();
+use Padre::Wx ();
 
-# use Padre::Logger;
-
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Wx::App';
-
-
-
-
-
-######################################################################
-# Singleton Support
-
-my $SINGLETON = undef;
-
-sub new {
-	unless ($SINGLETON) {
-		$SINGLETON = shift->SUPER::new;
-		$SINGLETON->{conduit} = Padre::Wx::Frame::Null->new;
-		$SINGLETON->{conduit}->conduit_init;
-	}
-	return $SINGLETON;
-}
 
 
 
@@ -66,12 +43,18 @@ sub new {
 # Constructor and Accessors
 
 sub create {
-	my $self = shift->new;
+	my $class = shift;
+	my $self  = $class->new;
 
-	# Save a link back to the parent ide
+	# Check we only set up the application once
+	if ( $self->{ide} ) {
+		die "Cannot instantiate $class multiple times";
+	}
+
+	# Save a link back to the IDE object
 	$self->{ide} = shift;
 
-	# Immediately populate the main window
+	# Immediately build the main window
 	require Padre::Wx::Main;
 	$self->{main} = Padre::Wx::Main->new( $self->{ide} );
 
@@ -80,6 +63,50 @@ sub create {
 	$self->{queue} = Padre::Wx::ActionQueue->new($self);
 
 	return $self;
+}
+
+# Compulsory Wx methods
+sub OnInit {
+	my $self = shift;
+
+	# Bootstrap some Wx internals
+	Wx::Log::SetActiveTarget( Wx::LogStderr->new );
+
+	# Create the PlThreadEvent receiver
+	require Padre::Wx::Frame::Null;
+	$self->{conduit} = Padre::Wx::Frame::Null->new;
+	$self->{conduit}->conduit_init;
+
+	# Return true to continue
+	return 1;
+}
+
+# Clean up in reverse order
+sub OnExit {
+	my $self = shift;
+
+	# Action queue
+	if ( defined $self->{queue} ) {
+		delete $self->{queue};
+	}
+
+	# Main window
+	if ( defined $self->{main} ) {
+		delete $self->{main};
+	}
+
+	# PlThreadEvent conduit
+	if ( defined $self->{conduit} ) {
+		$self->{conduit}->Destroy;
+		delete $self->{conduit};
+	}
+
+	# IDE object
+	if ( defined $self->{ide} ) {
+		delete $self->{ide};
+	}
+
+	return 1;
 }
 
 =pod
@@ -144,24 +171,13 @@ sub conduit {
 	$_[0]->{conduit};
 }
 
-
-
-
-
-######################################################################
-# Compulsory Wx Methods
-
-sub OnInit {
-	return 1;
-}
-
 1;
 
 =pod
 
 =head1 COPYRIGHT
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 =head1 LICENSE
 
@@ -170,7 +186,7 @@ modify it under the same terms as Perl 5 itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

@@ -5,10 +5,9 @@ package Padre::Config::Host;
 use 5.008;
 use strict;
 use warnings;
-use Scalar::Util   ();
-use Padre::Current ();
+use Scalar::Util ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 # -- constructors
 
@@ -52,14 +51,6 @@ sub clone {
 }
 
 #
-# my $revision = $config->version;
-#
-sub version {
-	my $self = shift;
-	$self->{version}; # stored as other preferences!
-}
-
-#
 # $config->write;
 #
 sub write {
@@ -77,6 +68,7 @@ sub write {
 		# with no GUI at all.
 		if ($Padre::Wx::Main::VERSION) {
 			local $@;
+			require Padre::Current;
 			Padre::Current->main;
 		}
 	};
@@ -134,15 +126,6 @@ No parameters.
 
 =over 4
 
-=item version
-
-    my $revision = $config->version;
-
-Return the configuration schema revision. Indeed, we might want to change the
-underlying storage later on.
-
-No parameters.
-
 =item write
 
     $config->write;
@@ -155,14 +138,14 @@ No parameters.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute it and/or modify it under the
 same terms as Perl 5 itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

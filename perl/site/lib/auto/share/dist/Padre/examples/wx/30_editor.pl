@@ -36,12 +36,10 @@ use warnings FATAL => 'all';
 
 use Wx ':everything';
 use Wx::Event ':everything';
-use Wx::STC ();
-
+use Wx::Scintilla ();
 
 use File::Spec::Functions qw(catfile);
 use File::Basename qw(basename);
-
 
 use base 'Wx::Frame';
 
@@ -283,16 +281,17 @@ sub on_about {
 }
 
 #####################
+
 package Demo::Panel;
+
 use strict;
 use warnings FATAL => 'all';
-
-our $VERSION = '0.01';
-use Wx::STC;
-use base 'Wx::StyledTextCtrl';
-
+use Wx::Scintilla;
+use base 'Wx::Scintilla::TextCtrl';
 use Wx ':everything';
 use Wx::Event ':everything';
+
+our $VERSION = '0.01';
 
 sub new {
 	my ( $class, $parent ) = @_;
@@ -302,7 +301,7 @@ sub new {
 
 	$self->SetFont($font);
 
-	$self->StyleSetFont( wxSTC_STYLE_DEFAULT, $font );
+	$self->StyleSetFont( Wx::Scintilla::STYLE_DEFAULT, $font );
 	$self->StyleClearAll;
 
 	$self->StyleSetForeground( 0,  Wx::Colour->new( 0x00, 0x00, 0x7f ) );
@@ -322,9 +321,9 @@ sub new {
 	$self->StyleSetForeground( 17, Wx::Colour->new( 0xff, 0x00, 0x7f ) );
 	$self->StyleSetForeground( 18, Wx::Colour->new( 0x7f, 0x7f, 0x00 ) );
 	$self->StyleSetBold( 12, 1 );
-	$self->StyleSetSpec( wxSTC_H_TAG, "fore:#0000ff" );
+	$self->StyleSetSpec( Wx::Scintilla::SCE_H_TAG, "fore:#0000ff" );
 
-	$self->SetLexer(wxSTC_LEX_PERL);
+	$self->SetLexer(Wx::Scintilla::SCLEX_PERL);
 
 	$self->SetLayoutDirection(wxLayout_LeftToRight)
 		if $self->can('SetLayoutDirection');

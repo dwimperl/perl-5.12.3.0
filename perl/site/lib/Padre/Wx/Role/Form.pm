@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Padre::Wx ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 sub form {
 	my $self = shift;
@@ -28,7 +28,7 @@ sub form {
 		} elsif ( $control->isa('Wx::Choice') ) {
 			$hash{$name} = $control->GetSelection;
 		} elsif ( $control->isa('Wx::ColourPickerControl') ) {
-			$hash{$name} = $control->GetColour->GetAsString(Wx::wxC2S_HTML_SYNTAX);
+			$hash{$name} = $control->GetColour->GetAsString(Wx::C2S_HTML_SYNTAX);
 		} elsif ( $control->isa('Wx::FontPickerControl') ) {
 			$hash{$name} = $control->GetSelectedFont->GetNativeFontInfoUserDesc;
 		} else {
@@ -41,7 +41,7 @@ sub form {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

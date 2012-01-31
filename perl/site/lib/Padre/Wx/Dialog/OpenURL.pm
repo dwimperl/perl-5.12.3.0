@@ -6,7 +6,7 @@ use warnings;
 use Padre::Wx             ();
 use Padre::Wx::Role::Main ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Wx::Dialog
@@ -35,9 +35,9 @@ sub new {
 		$main,
 		-1,
 		Wx::gettext('Open URL'),
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxCAPTION | Wx::wxCLOSE_BOX | Wx::wxSYSTEM_MENU
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::CAPTION | Wx::CLOSE_BOX | Wx::SYSTEM_MENU
 	);
 
 	# Form Components
@@ -47,10 +47,10 @@ sub new {
 		$self,
 		-1,
 		"",
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 		[],
-		Wx::wxCB_DROPDOWN
+		Wx::CB_DROPDOWN
 	);
 	$self->{openurl_text}->SetSelection(-1);
 	$self->{openurl_text}->SetFocus;
@@ -58,7 +58,7 @@ sub new {
 	# OK button (obviously)
 	$self->{button_ok} = Wx::Button->new(
 		$self,
-		Wx::wxID_OK,
+		Wx::ID_OK,
 		Wx::gettext("&OK"),
 	);
 	$self->{button_ok}->SetDefault;
@@ -66,7 +66,7 @@ sub new {
 	# Cancel button (obviously)
 	$self->{button_cancel} = Wx::Button->new(
 		$self,
-		Wx::wxID_CANCEL,
+		Wx::ID_CANCEL,
 		Wx::gettext("&Cancel"),
 	);
 
@@ -77,39 +77,39 @@ sub new {
 		$self,
 		-1,
 		Wx::gettext('e.g.') . ' http://svn.perlide.org/padre/trunk/Padre/Makefile.PL',
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 	);
 
 	# Separator line between the controls and the buttons
 	my $line_1 = Wx::StaticLine->new(
 		$self,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
 	);
 
 	# Main button cluster
-	my $button_sizer = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$button_sizer->Add( $self->{button_ok},     1, 0,          0 );
-	$button_sizer->Add( $self->{button_cancel}, 1, Wx::wxLEFT, 5 );
+	my $button_sizer = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$button_sizer->Add( $self->{button_ok},     1, 0,        0 );
+	$button_sizer->Add( $self->{button_cancel}, 1, Wx::LEFT, 5 );
 
 	# The main layout for the dialog is vertical
-	my $sizer_2 = Wx::BoxSizer->new(Wx::wxVERTICAL);
-	$sizer_2->Add( $openurl_label,        0, 0,                                       0 );
-	$sizer_2->Add( $self->{openurl_text}, 0, Wx::wxTOP | Wx::wxEXPAND,                5 );
-	$sizer_2->Add( $line_1,               0, Wx::wxTOP | Wx::wxBOTTOM | Wx::wxEXPAND, 5 );
-	$sizer_2->Add( $button_sizer,         1, Wx::wxALIGN_RIGHT,                       5 );
+	my $sizer_2 = Wx::BoxSizer->new(Wx::VERTICAL);
+	$sizer_2->Add( $openurl_label,        0, 0,                                 0 );
+	$sizer_2->Add( $self->{openurl_text}, 0, Wx::TOP | Wx::EXPAND,              5 );
+	$sizer_2->Add( $line_1,               0, Wx::TOP | Wx::BOTTOM | Wx::EXPAND, 5 );
+	$sizer_2->Add( $button_sizer,         1, Wx::ALIGN_RIGHT,                   5 );
 
 	# Wrap it in a horizontal to create an top level border
-	my $sizer_1 = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
-	$sizer_1->Add( $sizer_2, 1, Wx::wxALL | Wx::wxEXPAND, 5 );
+	my $sizer_1 = Wx::BoxSizer->new(Wx::HORIZONTAL);
+	$sizer_1->Add( $sizer_2, 1, Wx::ALL | Wx::EXPAND, 5 );
 
 	# Apply the top sizer in the stack to the window,
 	# and tell the window and the sizer to alter size to fit
 	# to each other correctly, regardless of the platform.
 	# This type of sizing is NOT adaptive, so we must not use
-	# Wx::wxRESIZE_BORDER with this dialog.
+	# Wx::RESIZE_BORDER with this dialog.
 	$self->SetSizer($sizer_1);
 	$sizer_1->Fit($self);
 	$self->Layout;
@@ -137,7 +137,7 @@ sub modal {
 	my $self  = $class->new(@_);
 	my $ok    = $self->ShowModal;
 	my $rv =
-		( $ok == Wx::wxID_OK )
+		( $ok == Wx::ID_OK )
 		? $self->{openurl_text}->GetValue
 		: undef;
 	$self->Destroy;
@@ -150,7 +150,7 @@ sub modal {
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -160,7 +160,7 @@ LICENSE file included with this module.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

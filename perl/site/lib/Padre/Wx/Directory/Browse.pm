@@ -12,7 +12,7 @@ use Padre::Constant            ();
 use Padre::Wx::Directory::Path ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Task';
 
 use constant NO_WARN => 1;
@@ -77,11 +77,10 @@ sub prepare {
 sub run {
 	TRACE( $_[0] ) if DEBUG;
 	require Module::Manifest;
-	my $self   = shift;
-	my $handle = $self->handle;
-	my $root   = $self->{root};
-	my $list   = $self->{list};
-	my @queue  = @$list;
+	my $self  = shift;
+	my $root  = $self->{root};
+	my $list  = $self->{list};
+	my @queue = @$list;
 
 	# Prepare the skip rules
 	my $rule = Module::Manifest->new;
@@ -95,7 +94,7 @@ sub run {
 	while (@queue) {
 
 		# Abort the task if we've been cancelled
-		if ( $self->cancel ) {
+		if ( $self->cancelled ) {
 			TRACE('Padre::Wx::Directory::Search task has been cancelled') if DEBUG;
 			return 1;
 		}
@@ -189,8 +188,8 @@ sub run {
 		# Step 3 - Send the completed directory back to the parent process
 		#          Don't send a response if the directory is empty.
 		#          Also skip if we are running in the parent and have no handle.
-		if ( $handle and @objects ) {
-			$handle->message( OWNER => $request, map { $_->[0] } @objects );
+		if ( $self->is_child and @objects ) {
+			$self->tell_owner( $request, map { $_->[0] } @objects );
 		}
 	}
 
@@ -199,7 +198,7 @@ sub run {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

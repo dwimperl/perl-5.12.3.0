@@ -53,7 +53,7 @@ need to be delayed until a new background worker can be spawned, or for longer
 if the maximum background worker limit has been reached.
 
 The solution is provided by the C<on_message> handler, which is passed the
-parent task object as its first paramater.
+parent task object as its first parameter.
 
 Tasks which expect to be sent messages from their owner should send the owner
 a greeting message as soon as they have started. Not only does this let the
@@ -99,8 +99,8 @@ use Scalar::Util   ();
 use Padre::Current ();
 use Padre::Logger;
 
-our $VERSION    = '0.90';
-our $COMPATIBLE = '0.69';
+our $VERSION    = '0.94';
+our $COMPATIBLE = '0.91';
 
 # Use a shared sequence for object revisioning greatly
 # simplifies the indexing process.
@@ -131,8 +131,7 @@ revision since the original owner id was issued.
 =cut
 
 sub task_owner {
-	TRACE( $_[0] ) if DEBUG;
-	$INDEX{ $_[1] };
+	$INDEX{ $_[1] || 0 };
 }
 
 =pod
@@ -260,7 +259,37 @@ sub task_request {
 
 	# Create and start the task with ourself as the owner
 	TRACE("Creating and scheduling task $driver") if DEBUG;
-	$driver->new( owner => $self, %param )->schedule;
+	my $task = $driver->new(
+		owner => $self->task_revision,
+		%param,
+	);
+
+	# Check the run event handler
+	my $on_run = $task->on_run;
+	if ( $on_run and not $self->can($on_run) ) {
+		die "The on_run handler '$on_run' is not implemented";
+	}
+
+	# Check the status event handler
+	my $on_status = $task->on_status;
+	if ( $on_status and not $self->can($on_status) ) {
+		die "The on_status handler '$on_status' is not implemented";
+	}
+
+	# Check the message event handler
+	my $on_message = $task->on_message;
+	if ( $on_message and not $self->can($on_message) ) {
+		die "The on_message handler '$on_message' is not implemented";
+	}
+
+	# Check the finish event handler
+	my $on_finish = $task->on_message;
+	if ( $on_finish and not $self->can($on_finish) ) {
+		die "The on_message handler '$on_finish' is not implemented";
+	}
+
+	# Send the task for execution
+	$task->schedule;
 }
 
 =pod
@@ -320,7 +349,7 @@ sub task_message {
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -330,7 +359,7 @@ LICENSE file included with this module.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

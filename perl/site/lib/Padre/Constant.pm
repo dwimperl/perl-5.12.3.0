@@ -10,26 +10,13 @@ use File::Path ();
 use File::Spec ();
 use File::HomeDir 0.91 ();
 
-our $VERSION    = '0.90';
+our $VERSION    = '0.94';
 our $COMPATIBLE = '0.57';
 
 # Convenience constants for the operating system
 use constant WIN32 => !!( ( $^O eq 'MSWin32' ) or ( $^O eq 'cygwin' ) );
 use constant MAC => !!( $^O eq 'darwin' );
 use constant UNIX => !( WIN32 or MAC );
-
-# Padre targets the three largest Wx backends
-# 1. Win32 Native
-# 2. Mac OS X Native
-# 3. Unix GTK
-# The following defined reusable constants for these platforms,
-# suitable for use in Wx platform-specific adaptation code.
-# Currently (and a bit naively) we align these to the platforms.
-use constant {
-	WXWIN32 => WIN32,
-	WXMAC   => MAC,
-	WXGTK   => UNIX,
-};
 
 # The local newline type
 use constant {
@@ -74,22 +61,68 @@ use constant {
 	PROJECT => 2,
 };
 
-# Syntax Highlighter Colours.
+# Scintilla Margin Allocation
+use constant {
+	MARGIN_LINE   => 0,
+	MARGIN_MARKER => 1,
+	MARGIN_FOLD   => 2,
+};
+
+# Scintilla Marker Allocation
+# The markers will be layered on top of each other with the highest
+# value sitting topmost on any resulting stack of markers.
+use constant {
+	MARKER_WARN          => 1,
+	MARKER_ERROR         => 2,
+	MARKER_ADDED         => 3, # Line added
+	MARKER_CHANGED       => 4, # Line changed
+	MARKER_DELETED       => 5, # Line deleted
+	MARKER_LOCATION      => 6, # current location of the debugger
+	MARKER_BREAKPOINT    => 7, # location of the debugger breakpoint
+	MARKER_NOT_BREAKABLE => 8, # location of the debugger not break able
+};
+
+# Scintilla Indicator Allocation
+use constant {
+	INDICATOR_SMART_HIGHLIGHT => 0,
+	INDICATOR_WARNING         => 1,
+	INDICATOR_ERROR           => 2,
+	INDICATOR_UNDERLINE       => 3,
+};
+
+# Scintilla Syntax Highlighter Colours.
 # NOTE: It's not clear why these need "PADRE_" in the name, but they do.
 use constant {
-	PADRE_BLACK    => 0,
-	PADRE_BLUE     => 1,
-	PADRE_RED      => 2,
-	PADRE_GREEN    => 3,
-	PADRE_MAGENTA  => 4,
-	PADRE_ORANGE   => 5,
-	PADRE_DIM_GRAY => 6,
-	PADRE_CRIMSON  => 7,
-	PADRE_BROWN    => 8,
+	PADRE_BLACK        => 0,
+	PADRE_BLUE         => 1,
+	PADRE_RED          => 2,
+	PADRE_GREEN        => 3,
+	PADRE_MAGENTA      => 4,
+	PADRE_ORANGE       => 5,
+	PADRE_DIM_GRAY     => 6,
+	PADRE_CRIMSON      => 7,
+	PADRE_BROWN        => 8,
+	PADRE_DIFF_HEADER  => 123,
+	PADRE_DIFF_DELETED => 124,
+	PADRE_DIFF_ADDED   => 125,
+	PADRE_WARNING      => 126,
+	PADRE_ERROR        => 127,
+};
+
+# Version Control System (VCS) constants
+use constant {
+	SUBVERSION => 'SVN',
+	GIT        => 'Git',
+	MERCURIAL  => 'Mercurial',
+	BAZAAR     => 'Bazaar',
+	CVS        => 'CVS',
 };
 
 # Portable Perl Support
-use constant PORTABLE => ( $Portable::ENABLED and Portable->default->dist_root );
+use constant PORTABLE => do {
+	no warnings 'once';
+	$Portable::ENABLED and Portable->default->dist_root;
+};
 
 # Padre's home dir
 use constant PADRE_HOME => $ENV{PADRE_HOME};
@@ -182,19 +215,6 @@ is defined in this module.
 
 Operating Systems.
 
-=head2 C<WXWIN32>, C<WXMAC>, C<WXGTK>
-
-Padre targets the three largest Wx back-ends and maps to the OS constants.
-
-These are superficially identical to the current operation system constants,
-but are reserved to specifically differentiate between the operating system
-in general and the Wx backend implementation, in case the distinction becomes
-important at some point in the future.
-
-    WXWIN32 => WIN32,
-    WXMAC   => MAC,
-    WXGTK   => UNIX,
-
 =head2 C<BOOLEAN>, C<POSINT>, C<INTEGER>, C<ASCII>, C<PATH>
 
 Settings data types (based on Firefox types).
@@ -208,7 +228,7 @@ Settings storage back-ends.
 The SVN Revision (when running a development build).
 
 =head2 C<PADRE_BLACK>, C<PADRE_BLUE>, C<PADRE_RED>, C<PADRE_GREEN>, C<PADRE_MAGENTA>, C<PADRE_ORANGE>,
-C<PADRE_DIM_GRAY>, C<PADRE_CRIMSON>, C<PADRE_BROWN>
+C<PADRE_DIM_GRAY>, C<PADRE_CRIMSON>, C<PADRE_BROWN>, C<PADRE_WARNING>, C<PADRE_ERROR>
 
 Core supported colours.
 
@@ -251,7 +271,7 @@ same terms as Perl 5 itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

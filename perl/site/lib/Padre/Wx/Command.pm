@@ -16,7 +16,7 @@ use Padre::Wx::Role::Main ();
 use Padre::Wx             ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::View
 	Padre::Wx::Role::Main
@@ -33,18 +33,18 @@ sub new {
 	my $panel = shift || $main->bottom;
 
 	my $self = $class->SUPER::new(
-		$panel, -1, Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		Wx::wxNO_FULL_REPAINT_ON_RESIZE | Wx::wxCLIP_CHILDREN
+		$panel, -1, Wx::DefaultPosition, Wx::DefaultSize,
+		Wx::NO_FULL_REPAINT_ON_RESIZE | Wx::CLIP_CHILDREN
 	);
 
 	my $output = Wx::TextCtrl->new(
-		$self, -1, "", Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		Wx::wxTE_READONLY | Wx::wxTE_MULTILINE | Wx::wxNO_FULL_REPAINT_ON_RESIZE
+		$self, -1, "", Wx::DefaultPosition, Wx::DefaultSize,
+		Wx::TE_READONLY | Wx::TE_MULTILINE | Wx::NO_FULL_REPAINT_ON_RESIZE
 	);
 
 	my $input = Wx::TextCtrl->new(
-		$self, -1, "", Wx::wxDefaultPosition, Wx::wxDefaultSize,
-		Wx::wxNO_FULL_REPAINT_ON_RESIZE | Wx::wxTE_PROCESS_ENTER
+		$self, -1, "", Wx::DefaultPosition, Wx::DefaultSize,
+		Wx::NO_FULL_REPAINT_ON_RESIZE | Wx::TE_PROCESS_ENTER
 	);
 
 	$self->{_output_} = $output;
@@ -94,11 +94,11 @@ sub view_panel {
 }
 
 sub view_label {
-	shift->gettext_label(@_);
+	Wx::gettext('Command');
 }
 
 sub view_close {
-	shift->main->show_command_line(0);
+	shift->main->show_command(0);
 }
 
 
@@ -258,11 +258,6 @@ sub outn {
 #####################################################################
 # General Methods
 
-sub gettext_label {
-	Wx::gettext('Command');
-}
-
-
 sub select {
 	my $self   = shift;
 	my $parent = $self->GetParent;
@@ -287,7 +282,7 @@ sub relocale {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

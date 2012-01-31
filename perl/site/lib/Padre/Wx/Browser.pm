@@ -35,7 +35,7 @@ use Padre::Wx::AuiManager ();
 use Padre::Role::Task     ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Role::Task
 	Wx::Dialog
@@ -61,9 +61,9 @@ sub new {
 		undef,
 		-1,
 		Wx::gettext('Help'),
-		Wx::wxDefaultPosition,
+		Wx::DefaultPosition,
 		[ 750, 700 ],
-		Wx::wxDEFAULT_FRAME_STYLE,
+		Wx::DEFAULT_FRAME_STYLE,
 	);
 
 	$self->{provider} = Padre::Browser->new;
@@ -71,23 +71,23 @@ sub new {
 	# Until we get a real icon use the same one as the others
 	$self->SetIcon(Padre::Wx::Icon::PADRE);
 
-	my $top_s = Wx::BoxSizer->new(Wx::wxVERTICAL);
-	my $but_s = Wx::BoxSizer->new(Wx::wxHORIZONTAL);
+	my $top_s = Wx::BoxSizer->new(Wx::VERTICAL);
+	my $but_s = Wx::BoxSizer->new(Wx::HORIZONTAL);
 
 	$self->{notebook} = Wx::AuiNotebook->new(
 		$self,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxAUI_NB_DEFAULT_STYLE
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::AUI_NB_DEFAULT_STYLE
 	);
 
 	$self->{search} = Wx::TextCtrl->new(
 		$self, -1,
 		'',
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxTE_PROCESS_ENTER
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::TE_PROCESS_ENTER
 	);
 	$self->{search}->SetToolTip( Wx::ToolTip->new( Wx::gettext('Search for perldoc - e.g. Padre::Task, Net::LDAP') ) );
 
@@ -101,20 +101,20 @@ sub new {
 
 	my $label = Wx::StaticText->new(
 		$self, -1, Wx::gettext('Search:'),
-		Wx::wxDefaultPosition, [ 50, -1 ],
-		Wx::wxALIGN_RIGHT
+		Wx::DefaultPosition, [ 50, -1 ],
+		Wx::ALIGN_RIGHT
 	);
 	$label->SetToolTip( Wx::ToolTip->new( Wx::gettext('Search for perldoc - e.g. Padre::Task, Net::LDAP') ) );
 
-	my $close_button = Wx::Button->new( $self, Wx::wxID_CANCEL, Wx::gettext('&Close') );
+	my $close_button = Wx::Button->new( $self, Wx::ID_CANCEL, Wx::gettext('&Close') );
 
-	$but_s->Add( $label,          0, Wx::wxALIGN_CENTER_VERTICAL );
-	$but_s->Add( $self->{search}, 1, Wx::wxALIGN_LEFT | Wx::wxALIGN_CENTER_VERTICAL );
+	$but_s->Add( $label,          0, Wx::ALIGN_CENTER_VERTICAL );
+	$but_s->Add( $self->{search}, 1, Wx::ALIGN_LEFT | Wx::ALIGN_CENTER_VERTICAL );
 	$but_s->AddStretchSpacer(2);
-	$but_s->Add( $close_button, 0, Wx::wxALIGN_RIGHT | Wx::wxALIGN_CENTER_VERTICAL );
+	$but_s->Add( $close_button, 0, Wx::ALIGN_RIGHT | Wx::ALIGN_CENTER_VERTICAL );
 
-	$top_s->Add( $but_s,            0, Wx::wxEXPAND );
-	$top_s->Add( $self->{notebook}, 1, Wx::wxGROW );
+	$top_s->Add( $but_s,            0, Wx::EXPAND );
+	$top_s->Add( $self->{notebook}, 1, Wx::GROW );
 	$self->SetSizer($top_s);
 
 	#$self->_setup_welcome;
@@ -441,7 +441,7 @@ sub not_found {
 		$self,
 		sprintf( Wx::gettext("Searched for '%s' and failed..."), $query ),
 		Wx::gettext('Help not found.'),
-		Wx::wxOK | Wx::wxCENTRE | Wx::wxICON_INFORMATION
+		Wx::OK | Wx::CENTRE | Wx::ICON_INFORMATION
 	);
 
 	$dialog->ShowModal;
@@ -486,7 +486,7 @@ L<Padre::Browser> L<Padre::Task::Browser>
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

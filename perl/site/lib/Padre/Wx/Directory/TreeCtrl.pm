@@ -8,11 +8,12 @@ use File::Spec                 ();
 use File::Basename             ();
 use Padre::Util                ('_T');
 use Padre::Constant            ();
+use Padre::Wx                  ();
 use Padre::Wx::TreeCtrl        ();
 use Padre::Wx::Role::Main      ();
 use Padre::Wx::Directory::Path ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = qw{
 	Padre::Wx::Role::Main
 	Padre::Wx::TreeCtrl
@@ -31,10 +32,10 @@ sub new {
 	my $self  = $class->SUPER::new(
 		$panel,
 		-1,
-		Wx::wxDefaultPosition,
-		Wx::wxDefaultSize,
-		Wx::wxTR_HIDE_ROOT | Wx::wxTR_SINGLE | Wx::wxTR_FULL_ROW_HIGHLIGHT | Wx::wxTR_HAS_BUTTONS
-			| Wx::wxTR_LINES_AT_ROOT | Wx::wxBORDER_NONE | Wx::wxCLIP_CHILDREN
+		Wx::DefaultPosition,
+		Wx::DefaultSize,
+		Wx::TR_HIDE_ROOT | Wx::TR_SINGLE | Wx::TR_FULL_ROW_HIGHLIGHT | Wx::TR_HAS_BUTTONS | Wx::TR_LINES_AT_ROOT
+			| Wx::BORDER_NONE | Wx::CLIP_CHILDREN
 	);
 
 	# Create the image list
@@ -79,7 +80,12 @@ sub new {
 		},
 	);
 
-	Wx::Event::EVT_KEY_UP( $self, \&key_up );
+	Wx::Event::EVT_KEY_UP(
+		$self,
+		sub {
+			shift->key_up(@_);
+		},
+	);
 
 	# Set up the root
 	$self->AddRoot( Wx::gettext('Directory'), -1, -1 );
@@ -127,7 +133,7 @@ sub key_up {
 	my $code  = $event->GetKeyCode;
 
 	# see Padre::Wx::Main::key_up
-	$mod = $mod & ( Wx::wxMOD_ALT() + Wx::wxMOD_CMD() + Wx::wxMOD_SHIFT() );
+	$mod = $mod & ( Wx::MOD_ALT + Wx::MOD_CMD + Wx::MOD_SHIFT );
 
 	my $current = $self->current;
 	my $main    = $current->main;
@@ -136,7 +142,7 @@ sub key_up {
 	my $data    = $self->GetPlData($item_id) or return;
 	my $file    = File::Spec->catfile( $project->root, $data->path );
 
-	if ( $code == Wx::WXK_DELETE ) {
+	if ( $code == Wx::K_DELETE ) {
 		$self->delete_file($file);
 	}
 
@@ -401,7 +407,7 @@ sub expanded {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

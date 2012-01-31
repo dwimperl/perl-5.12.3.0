@@ -17,8 +17,9 @@ use Padre::Role::Task ();
 use Padre::Feature    ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
-our @ISA     = qw{
+our $VERSION    = '0.94';
+our $COMPATIBLE = '0.93';
+our @ISA        = qw{
 	Padre::Role::Task
 	Padre::Document
 };
@@ -68,7 +69,7 @@ sub ppi_dump {
 }
 
 sub ppi_set {
-	my $self = shift;
+	my $self     = shift;
 	my $document = Params::Util::_INSTANCE( shift, 'PPI::Document' );
 	unless ($document) {
 		Carp::croak('Did not provide a PPI::Document');
@@ -76,6 +77,17 @@ sub ppi_set {
 
 	# Serialize and overwrite the current text
 	$self->text_set( $document->serialize );
+}
+
+sub ppi_replace {
+	my $self     = shift;
+	my $document = Params::Util::_INSTANCE( shift, 'PPI::Document' );
+	unless ($document) {
+		Carp::croak('Did not provide a PPI::Document');
+	}
+
+	# Serialize and overwrite the current text
+	$self->text_replace( $document->serialize );	
 }
 
 sub ppi_find {
@@ -98,7 +110,7 @@ sub ppi_transform {
 	unless ( $transform->document($document) ) {
 		Carp::croak("Transform failed");
 	}
-	$self->ppi_set($document);
+	$self->ppi_replace($document);
 
 	return 1;
 }
@@ -148,7 +160,7 @@ sub set_highlighter {
 	# configuration variable
 	my $limit;
 	if ( $module eq 'Padre::Document::Perl::PPILexer' ) {
-		$limit = $self->current->config->lang_perl5_lexer_ppi_limit;
+		$limit = $self->config->lang_perl5_lexer_ppi_limit;
 	} elsif ( $module eq 'Padre::Document::Perl::Lexer' ) {
 		$limit = 4000;
 	} elsif ( $module eq 'Padre::Plugin::Kate' ) {
@@ -165,7 +177,7 @@ sub set_highlighter {
 
 	if ( defined $limit and $length > $limit ) {
 		TRACE("Forcing STC highlighting") if DEBUG;
-		$module = 'stc';
+		$module = '';
 	}
 
 	return $self->SUPER::set_highlighter($module);
@@ -187,7 +199,7 @@ sub guess_filename {
 	}
 
 	my $text    = $self->text_get;
-	my $project = $self->current->project;
+	my $project = $self->project;
 
 	# Is this a test?
 	if ( $text =~ /(?:use Test::|plan \=\>)/ ) {
@@ -291,14 +303,14 @@ sub guess_subpath {
 
 my $keywords;
 
-sub keywords {
+sub get_calltip_keywords {
 	$keywords
 		or $keywords = YAML::Tiny::LoadFile( Padre::Util::sharefile( 'languages', 'perl5', 'perl5.yml' ) );
 }
 
 my $wordchars = join '', '$@%&_:[]{}', 0 .. 9, 'A' .. 'Z', 'a' .. 'z';
 
-sub stc_word_chars {
+sub scintilla_word_chars {
 	return $wordchars;
 }
 
@@ -306,7 +318,8 @@ sub stc_word_chars {
 # triggering a "Variable length lookbehind not implemented" error.
 # return qr/(?:(?<=^)\s*sub\s+$_[1]|(?<=[\012\015])\s*sub\s+$_[1])\b/;
 sub get_function_regex {
-	return qr/(?:^|[^# \t-])[ \t]*((?:sub|func|method)\s+$_[1]\b|\*$_[1]\s*=\s*(?:sub\b|\\\&))/;
+	my $name = quotemeta $_[1];
+	return qr/(?:^|[^# \t-])[ \t]*((?:sub|func|method)\s+$name\b|\*$name\s*=\s*(?:sub\b|\\\&))/;
 }
 
 =pod
@@ -327,7 +340,7 @@ sub get_command {
 	my $arg_ref = shift || {};
 	my $debug   = exists $arg_ref->{debug} ? $arg_ref->{debug} : 0;
 	my $trace   = exists $arg_ref->{trace} ? $arg_ref->{trace} : 0;
-	my $config  = $self->current->config;
+	my $config  = $self->config;
 
 	# Use a temporary file if run_save is set to 'unsaved'
 	my $filename =
@@ -414,7 +427,7 @@ sub get_interpreter {
 	my $arg_ref = shift || {};
 	my $debug   = exists $arg_ref->{debug} ? $arg_ref->{debug} : 0;
 	my $trace   = exists $arg_ref->{trace} ? $arg_ref->{trace} : 0;
-	my $config  = $self->current->config;
+	my $config  = $self->config;
 
 	# The configuration value is cheaper to get compared to cperl(),
 	# try it first.
@@ -495,10 +508,6 @@ sub beginner_check {
 	return 1;
 }
 
-sub comment_lines_str {
-	return '#';
-}
-
 sub find_unmatched_brace {
 	TRACE("find_unmatched_brace") if DEBUG;
 	my $self = shift;
@@ -530,7 +539,7 @@ sub find_unmatched_brace_response {
 	Wx::MessageBox(
 		Wx::gettext("All braces appear to be matched"),
 		Wx::gettext("Check Complete"),
-		Wx::wxOK,
+		Wx::OK,
 		$self->current->main,
 	);
 }
@@ -599,7 +608,7 @@ sub find_variable_declaration {
 		Wx::MessageBox(
 			Wx::gettext("Current cursor does not seem to point at a variable"),
 			Wx::gettext("Check cancelled"),
-			Wx::wxOK,
+			Wx::OK,
 			$self->current->main,
 		);
 		return;
@@ -640,7 +649,7 @@ sub find_variable_declaration_response {
 	Wx::MessageBox(
 		$text,
 		Wx::gettext("Search Canceled"),
-		Wx::wxOK,
+		Wx::OK,
 		$self->current->main,
 	);
 }
@@ -655,7 +664,7 @@ sub find_method_declaration {
 		Wx::MessageBox(
 			Wx::gettext("Current cursor does not seem to point at a method"),
 			Wx::gettext("Check cancelled"),
-			Wx::wxOK,
+			Wx::OK,
 			$main
 		);
 		return ();
@@ -674,7 +683,7 @@ sub find_method_declaration {
 		Wx::MessageBox(
 			sprintf( Wx::gettext("Current '%s' not found"), $token ),
 			Wx::gettext("Check cancelled"),
-			Wx::wxOK,
+			Wx::OK,
 			$main
 		);
 		return;
@@ -748,7 +757,7 @@ sub _find_method {
 		# Scan for declarations in all module files.
 		# TODO: This is horrendously slow to be running in the foreground.
 		# TODO: This is pretty crude and doesn't integrate with the project system.
-		my $project = $self->current->project;
+		my $project = $self->project;
 		if ($project) {
 			require File::Find::Rule;
 			my @files = File::Find::Rule->file->name('*.pm')->in( File::Spec->catfile( $project->root, 'lib' ) );
@@ -795,7 +804,7 @@ sub rename_variable {
 		Wx::MessageBox(
 			Wx::gettext('Current cursor does not seem to point at a variable.'),
 			Wx::gettext('Rename variable'),
-			Wx::wxOK,
+			Wx::OK,
 			$self->current->main,
 		);
 		return;
@@ -807,7 +816,7 @@ sub rename_variable {
 		Wx::gettext('Rename variable'),
 		$token,
 	);
-	return if $dialog->ShowModal == Wx::wxID_CANCEL;
+	return if $dialog->ShowModal == Wx::ID_CANCEL;
 	my $replacement = $dialog->GetValue;
 	$dialog->Destroy;
 
@@ -845,7 +854,7 @@ sub change_variable_style {
 		Wx::MessageBox(
 			Wx::gettext('Current cursor does not seem to point at a variable.'),
 			Wx::gettext('Variable case change'),
-			Wx::wxOK,
+			Wx::OK,
 			$self->current->main,
 		);
 		return;
@@ -889,7 +898,7 @@ sub rename_variable_response {
 	Wx::MessageBox(
 		$text,
 		Wx::gettext("Replace Operation Canceled"),
-		Wx::wxOK,
+		Wx::OK,
 		$self->current->main,
 	);
 }
@@ -938,7 +947,7 @@ sub introduce_temporary_variable_response {
 	Wx::MessageBox(
 		$text,
 		Wx::gettext("Replace Operation Canceled"),
-		Wx::wxOK,
+		Wx::OK,
 		$self->current->main,
 	);
 }
@@ -1033,14 +1042,10 @@ EOC
 	my $dialog = Padre::Wx::Dialog::RefactorSelectFunction->new( $editor->main, \@functions );
 	$dialog->show;
 	if ( $dialog->{cancelled} ) {
-
-		#$dialog->Destroy;
 		return ();
 	}
 
 	my $subname = $dialog->get_function_name;
-
-	#$dialog->Destroy;
 
 	# make the change to the selected text
 	$editor->BeginUndoAction; # do the edit atomically
@@ -1048,10 +1053,13 @@ EOC
 
 	# with the change made
 	# locate the function:
-	my ( $start, $end ) = Padre::Util::get_matches(
-		$editor->GetText,
-		$self->get_function_regex($subname),
-		$editor->GetSelection, # Provides two params
+	require Padre::Search;
+	my ( $start, $end ) = Padre::Search->matches(
+		text     => $editor->GetText,
+		regex    => $self->get_function_regex($subname),
+		submatch => 1,
+		from     => $editor->GetSelectionStart,
+		to       => $editor->GetSelectionEnd,
 	);
 	unless ( defined $start ) {
 
@@ -1465,7 +1473,7 @@ sub _pod {
 # Our opportunity to implement a context-sensitive right-click menu
 # This would be a lot more powerful if we used PPI, but since that would
 # slow things down beyond recognition, we use heuristics for now.
-sub event_on_right_down {
+sub event_on_context_menu {
 	my $self   = shift;
 	my $editor = shift;
 	my $menu   = shift;
@@ -1477,21 +1485,19 @@ sub event_on_right_down {
 	# when pressing Windows context "right click" key
 	my $pos = $editor->GetCurrentPos;
 
-	my $introduced_separator = 0;
+	my $separator = 0;
 
 	my ( $location, $token ) = $self->get_current_symbol($pos);
 
 	# Append variable specific menu items if it's a variable
 	if ( defined $location and $token =~ /^[\$\*\@\%\&]/ ) {
-		$menu->AppendSeparator if not $introduced_separator++;
+		$menu->AppendSeparator unless $separator++;
 
 		$menu->add_menu_action(
-			$menu,
 			'perl.find_variable',
 		);
 
 		$menu->add_menu_action(
-			$menu,
 			'perl.rename_variable',
 		);
 
@@ -1522,33 +1528,25 @@ sub event_on_right_down {
 			$style,
 			'perl.variable_from_camel_case_ucfirst',
 		);
-
-		# End variable style sub-menu
-	} # end if it's a variable
-
+	}
 
 	if ( defined $location and $token =~ /^\w+$/ ) {
+		$menu->AppendSeparator unless $separator++;
+
 		$menu->add_menu_action(
-			$menu,
 			'perl.find_method',
 		);
 	}
 
-
-	my $select_start = $editor->GetSelectionStart;
-	my $select_end   = $editor->GetSelectionEnd;
-
 	# Is something selected
-	if ( $select_start != $select_end ) {
-		$menu->AppendSeparator if not $introduced_separator++;
+	if ( $editor->GetSelectionLength ) {
+		$menu->AppendSeparator unless $separator++;
 
 		$menu->add_menu_action(
-			$menu,
 			'perl.introduce_temporary',
 		);
 
 		$menu->add_menu_action(
-			$menu,
 			'perl.edit_with_regex_editor',
 		);
 	}
@@ -1606,8 +1604,10 @@ sub event_mouse_moving {
 		return unless length $token;
 		return unless $editor->has_function($token);
 
-		$editor->StartStyling( $location->[2], Wx::wxSTC_INDICS_MASK );
-		$editor->SetStyling( length($token), Wx::wxSTC_INDIC2_MASK );
+		$editor->manual_highlight_show(
+			$location->[2], # Position
+			length($token), # Characters
+		);
 
 		$self->{last_highlight} = {
 			token => $token,
@@ -1621,7 +1621,7 @@ sub event_key_up {
 	my $editor = shift;
 	my $event  = shift;
 
-	if ( $event->GetKeyCode == Wx::WXK_CONTROL ) {
+	if ( $event->GetKeyCode == Wx::K_CONTROL ) {
 
 		# Ctrl key has been released, clear any highlighting
 		$self->_clear_highlight($editor);
@@ -1629,13 +1629,15 @@ sub event_key_up {
 }
 
 sub _clear_highlight {
-	my $self   = shift;
-	my $editor = shift;
-
+	my $self = shift;
 	return unless $self->{last_highlight};
 
-	$editor->StartStyling( $self->{last_highlight}{pos}, Wx::wxSTC_INDICS_MASK );
-	$editor->SetStyling( length( $self->{last_highlight}{token} ), 0 );
+	# Remove the last highlight
+	my $editor = shift;
+	$editor->manual_highlight_hide(
+		$self->{last_highlight}->{pos},
+		length $self->{last_highlight}->{token},
+	);
 	undef $self->{last_highlight};
 }
 
@@ -1790,44 +1792,9 @@ sub guess_filename_to_open {
 	return;
 }
 
-sub lexer_keywords {
-	return [
-
-		# Perl Keywords
-		[   qw(NULL __FILE__ __LINE__ __PACKAGE__ __DATA__ __END__ AUTOLOAD
-				BEGIN CORE DESTROY END EQ GE GT INIT LE LT NE CHECK abs accept
-				alarm and atan2 bind binmode bless caller chdir chmod chomp chop
-				chown chr chroot close closedir cmp connect continue cos crypt
-				dbmclose dbmopen defined delete die do dump each else elsif endgrent
-				endhostent endnetent endprotoent endpwent endservent eof eq eval
-				exec exists exit exp fcntl fileno flock for foreach fork format
-				formline ge getc getgrent getgrgid getgrnam gethostbyaddr gethostbyname
-				gethostent getlogin getnetbyaddr getnetbyname getnetent getpeername
-				getpgrp getppid getpriority getprotobyname getprotobynumber getprotoent
-				getpwent getpwnam getpwuid getservbyname getservbyport getservent
-				getsockname getsockopt glob gmtime goto grep gt hex if index
-				int ioctl join keys kill last lc lcfirst le length link listen
-				local localtime lock log lstat lt map mkdir msgctl msgget msgrcv
-				msgsnd my ne next no not oct open opendir or ord our pack package
-				pipe pop pos print printf prototype push quotemeta qu
-				rand read readdir readline readlink readpipe recv redo
-				ref rename require reset return reverse rewinddir rindex rmdir
-				scalar seek seekdir select semctl semget semop send setgrent
-				sethostent setnetent setpgrp setpriority setprotoent setpwent
-				setservent setsockopt shift shmctl shmget shmread shmwrite shutdown
-				sin sleep socket socketpair sort splice split sprintf sqrt srand
-				stat study sub substr symlink syscall sysopen sysread sysseek
-				system syswrite tell telldir tie tied time times truncate
-				uc ucfirst umask undef unless unlink unpack unshift untie until
-				use utime values vec wait waitpid wantarray warn while write
-				xor given when default say state UNITCHECK)
-		],
-	];
-}
-
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

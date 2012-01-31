@@ -23,7 +23,7 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 # This is a Padre::Util module where the subs should be called as functions,
 # but Template::Tiny requires us to use a blessed package and we could use
@@ -64,7 +64,7 @@ __END__
 
 =head1 COPYRIGHT
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -74,7 +74,7 @@ LICENSE file included with this module.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

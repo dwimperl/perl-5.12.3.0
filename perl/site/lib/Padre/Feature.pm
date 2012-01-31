@@ -39,7 +39,7 @@ use warnings;
 use constant      ();
 use Padre::Config ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 my $config = Padre::Config->read;
 
@@ -47,20 +47,23 @@ constant->import(
 	{
 
 		# Bloaty features users can disable
-		BOOKMARK     => $config->feature_bookmark,
-		CURSORMEMORY => $config->feature_cursormemory,
-		DEBUGGER     => $config->feature_debugger,
-		FOLDING      => $config->feature_folding,
-		FONTSIZE     => $config->feature_fontsize,
-		SESSION      => $config->feature_session,
+		BOOKMARK           => $config->feature_bookmark,
+		CURSORMEMORY       => $config->feature_cursormemory,
+		DEBUGGER           => $config->feature_debugger,
+		FOLDING            => $config->feature_folding,
+		FONTSIZE           => $config->feature_fontsize,
+		SESSION            => $config->feature_session,
+		CPAN               => $config->feature_cpan,
+		VCS                => $config->feature_vcs_support,
+		DIFF_DOCUMENT      => $config->feature_document_diffs,
+		SYNTAX_ANNOTATIONS => $config->feature_syntax_check_annotations,
 
 		# Experimental features users can enable
-		QUICK_FIX       => $config->feature_quick_fix,
-		REPLACEINFILES  => $config->feature_replaceinfiles,
+		COMMAND         => $config->feature_command,
 		SYNC            => $config->feature_sync,
+		QUICK_FIX       => $config->feature_quick_fix,
 		STYLE_GUI       => $config->feature_style_gui,
-		WIZARD_SELECTOR => $config->feature_wizard_selector,
-		WX_SCINTILLA    => $config->feature_wx_scintilla,
+		DIFF_WINDOW     => $config->feature_diff_window,
 		DEVEL_ENDSTATS  => $config->feature_devel_endstats,
 		DEVEL_TRACEUSE  => $config->feature_devel_traceuse,
 	}
@@ -72,14 +75,14 @@ constant->import(
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 
 This program is free software; you can redistribute it and/or modify it under the
 same terms as Perl 5 itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

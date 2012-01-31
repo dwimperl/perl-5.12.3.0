@@ -7,7 +7,7 @@ use Padre::Wx     ();
 use Padre::Util   ();
 use Padre::Plugin ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Plugin';
 
 
@@ -19,10 +19,10 @@ our @ISA     = 'Padre::Plugin';
 
 sub padre_interfaces {
 	return (
-		'Padre::Plugin'                       => 0.85,
-		'Padre::Wx'                           => 0.85,
-		'Padre::Wx::Main'                     => 0.85,
-		'Padre::Wx::History::TextEntryDialog' => 0.85,
+		'Padre::Plugin'                       => 0.91,
+		'Padre::Wx'                           => 0.91,
+		'Padre::Wx::Main'                     => 0.91,
+		'Padre::Wx::TextEntryDialog::History' => 0.85,
 	);
 }
 
@@ -81,8 +81,8 @@ sub menu_plugins_simple {
 
 		'---' => undef,
 
-		Wx::gettext('Run Document inside Padre')  => 'eval_document',
-		Wx::gettext('Run Selection inside Padre') => 'eval_selection',
+		Wx::gettext('Run &Document inside Padre')  => 'eval_document',
+		Wx::gettext('Run &Selection inside Padre') => 'eval_selection',
 
 		'---' => undef,
 
@@ -97,8 +97,8 @@ sub menu_plugins_simple {
 		sprintf( Wx::gettext('&wxWidgets %s Reference'), '2.8.12' ) => sub {
 			Padre::Wx::launch_browser('http://docs.wxwidgets.org/2.8.12/');
 		},
-		Wx::gettext('&STC Reference') => sub {
-			Padre::Wx::launch_browser('http://www.yellowbrain.com/stc/index.html');
+		Wx::gettext('&Scintilla Reference') => sub {
+			Padre::Wx::launch_browser('http://www.scintilla.org/ScintillaDoc.html');
 		},
 		Wx::gettext('wxPerl &Live Support') => sub {
 			Padre::Wx::launch_irc('wxperl');
@@ -212,7 +212,7 @@ sub load_everything {
 
 	# Find the location of Padre.pm
 	my $padre = $INC{'Padre.pm'};
-	my $parent = substr( $padre, 0, length($padre) - 3 );
+	my $parent = substr( $padre, 0, -3 );
 
 	# Find everything under Padre:: with a matching version
 	require File::Find::Rule;
@@ -296,9 +296,7 @@ Dumps the %INC hash to Output
 
 =head2 wxWidgets 2.8.12 Reference
 
-=head2 C<STC> reference
-
-Documentation for C<wxStyledTextCtrl>, a control that wraps the Scintilla editor component.
+=head2 C<Scintilla> reference
 
 Documentation for C<Wx::Scintilla>, a Scintilla source code editing component for wxWidgets
 
@@ -319,7 +317,7 @@ under the same terms as Perl itself.
 
 =cut
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

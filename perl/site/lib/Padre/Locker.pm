@@ -16,7 +16,7 @@ use Padre::DB       ();
 use Padre::Constant ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 
 sub new {
 	my $class = shift;
@@ -31,6 +31,9 @@ sub new {
 
 		# Padre::Config Transaction lock
 		config_depth => 0,
+
+		# Padre::Wx::AuiManager Transaction lock
+		aui_depth => 0,
 
 		# Wx ->Update lock
 		update_depth  => 0,
@@ -55,10 +58,12 @@ sub locked {
 	my $asset = shift;
 	if ( $asset eq 'UPDATE' ) {
 		return !!$self->{update_depth};
-	} elsif ( $asset eq 'BUSY' ) {
-		return !!$self->{busy_depth};
 	} elsif ( $asset eq 'REFRESH' ) {
 		return !!$self->{method_depth};
+	} elsif ( $asset eq 'AUI' ) {
+		return !!$self->{aui_depth};
+	} elsif ( $asset eq 'BUSY' ) {
+		return !!$self->{busy_depth};
 	} elsif ( $asset eq 'CONFIG' ) {
 		return !!$self->{config_depth};
 	} else {
@@ -75,7 +80,7 @@ sub locked {
 # might slow the shutdown process.
 sub shutdown {
 	my $self = shift;
-	my $lock = $self->lock( 'UPDATE', 'REFRESH', 'CONFIG' );
+	my $lock = $self->lock( 'UPDATE', 'AUI', 'REFRESH', 'CONFIG' );
 
 	# If we have an update lock running, stop it manually now.
 	# If we don't do this, Win32 Padre will segfault on exit.
@@ -157,7 +162,7 @@ sub update_increment {
 		### something better than disabling all render optimisation.
 		### Commented out to record for posterity, the forced Layout
 		### solution below evades the bug but without the flickering.
-		# if ( Wx::wxVERSION() >= 2.008012 and Padre::Constant::WXWIN32 ) {
+		# if ( Wx::wxVERSION() >= 2.008012 and Padre::Constant::WIN32 ) {
 		# $self->{update_locker} = 1;
 		# } else {
 		$self->{update_locker} = Wx::WindowUpdateLocker->new( $self->{owner} );
@@ -176,12 +181,34 @@ sub update_decrement {
 		$self->{update_locker} = undef;
 
 		# On Windows, we need to force layouts down to notebooks
-		if (Padre::Constant::WXWIN32) {
+		if (Padre::Constant::WIN32) {
 			if ( Wx::wxVERSION() >= 2.008012 and $self->{owner} ) {
 				my @notebook = grep { $_->isa('Wx::AuiNotebook') } $self->{owner}->GetChildren;
 				$_->Layout foreach @notebook;
 			}
 		}
+	}
+	return;
+}
+
+sub aui_increment {
+	my $self = shift;
+	unless ( $self->{aui_depth}++ ) {
+		return if $self->{shutdown};
+
+		# Nothing to do at increment time
+	}
+	return;
+}
+
+sub aui_decrement {
+	my $self = shift;
+	unless ( --$self->{aui_depth} ) {
+		return if $self->{shutdown};
+
+		# Unlocked for the final time
+		$self->{owner}->aui->Update;
+		$self->{owner}->Layout;
 	}
 	return;
 }
@@ -258,16 +285,22 @@ sub method_trim {
 	if ( defined $pending->{refresh} ) {
 		delete $pending->{refresh_menu};
 		delete $pending->{refresh_toolbar};
+		delete $pending->{refresh_notebook};
 		delete $pending->{refresh_status};
 		delete $pending->{refresh_functions};
 		delete $pending->{refresh_directory};
+		delete $pending->{refresh_syntax};
+		delete $pending->{refresh_outline};
+		delete $pending->{refresh_diff};
+		delete $pending->{refresh_vcs};
+		delete $pending->{refresh_title};
 	}
 	return;
 }
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

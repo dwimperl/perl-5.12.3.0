@@ -9,7 +9,7 @@ use Padre::Wx       ();
 use Padre::Wx::Menu ();
 use Padre::Current  ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Wx::Menu';
 
 
@@ -29,66 +29,36 @@ sub new {
 	# Add additional properties
 	$self->{main} = $main;
 
-	$self->{step_in} = $self->add_menu_action(
-		'debug.step_in',
+	$self->{breakpoints} = $self->add_menu_action(
+		'debug.breakpoints',
 	);
 
-	$self->{step_over} = $self->add_menu_action(
-		'debug.step_over',
+	$self->{debugoutput} = $self->add_menu_action(
+		'debug.debugoutput',
 	);
 
-	$self->{step_out} = $self->add_menu_action(
-		'debug.step_out',
-	);
-
-	$self->{run} = $self->add_menu_action(
-		'debug.run',
+	$self->{debugger} = $self->add_menu_action(
+		'debug.debugger',
 	);
 
 	$self->AppendSeparator;
 
-	$self->{jump_to} = $self->add_menu_action(
-		'debug.jump_to',
+	$self->{launch} = $self->add_menu_action(
+		'debug.launch',
 	);
-
-	$self->AppendSeparator;
 
 	$self->{set_breakpoint} = $self->add_menu_action(
 		'debug.set_breakpoint',
 	);
 
-	$self->{remove_breakpoint} = $self->add_menu_action(
-		'debug.remove_breakpoint',
-	);
-
-	$self->{list_breakpoints} = $self->add_menu_action(
-		'debug.list_breakpoints',
-	);
-
-	$self->AppendSeparator;
-
-	$self->{show_stack_trace} = $self->add_menu_action(
-		'debug.show_stack_trace',
-	);
-
-	$self->{display_value} = $self->add_menu_action(
-		'debug.display_value',
-	);
-
-	$self->AppendSeparator;
-
-	$self->{show_value} = $self->add_menu_action(
-		'debug.show_value',
-	);
-
-	$self->{evaluate_expression} = $self->add_menu_action(
-		'debug.evaluate_expression',
-	);
-
-	$self->AppendSeparator;
-
 	$self->{quit} = $self->add_menu_action(
 		'debug.quit',
+	);
+
+	$self->AppendSeparator;
+
+	$self->{visit_debug_wiki} = $self->add_menu_action(
+		'debug.visit_debug_wiki',
 	);
 
 	return $self;
@@ -100,28 +70,28 @@ sub title {
 
 sub refresh {
 	my $self     = shift;
+	my $main     = shift;
+	my $current  = Padre::Current::_CURRENT(@_);
+	my $config   = $current->config;
 	my $document = Padre::Current::_CURRENT(@_)->document;
 	my $hasdoc   = $document ? 1 : 0;
 
-	$self->{step_in}->Enable($hasdoc);
-	$self->{step_over}->Enable($hasdoc);
-	$self->{step_out}->Enable($hasdoc);
-	$self->{run}->Enable($hasdoc);
-	$self->{jump_to}->Enable($hasdoc);
-	$self->{set_breakpoint}->Enable($hasdoc);
-	$self->{remove_breakpoint}->Enable($hasdoc);
-	$self->{list_breakpoints}->Enable($hasdoc);
-	$self->{show_stack_trace}->Enable($hasdoc);
-	$self->{display_value}->Enable($hasdoc);
-	$self->{show_value}->Enable($hasdoc);
-	$self->{evaluate_expression}->Enable($hasdoc);
+	$self->{breakpoints}->Check( $config->main_breakpoints );
+	$self->{debugoutput}->Check( $config->main_debugoutput );
+	$self->{debugger}->Check( $config->main_debugger );
+
+	$self->{launch}->Enable(1);
+	$self->{set_breakpoint}->Enable(1);
+	$self->{quit}->Enable(1);
+
+	$self->{visit_debug_wiki}->Enable(1);
 
 	return 1;
 }
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

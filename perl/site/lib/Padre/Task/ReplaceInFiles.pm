@@ -9,7 +9,7 @@ use Padre::Search ();
 use Padre::Task   ();
 use Padre::Logger;
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Task';
 
 
@@ -30,6 +30,9 @@ sub new {
 	}
 
 	# Property defaults
+	unless ( defined $self->{dryrun} ) {
+		$self->{dryrun} = 0;
+	}
 	unless ( defined $self->{binary} ) {
 		$self->{binary} = 0;
 	}
@@ -44,9 +47,10 @@ sub new {
 	# Create the embedded search object
 	unless ( $self->{search} ) {
 		$self->{search} = Padre::Search->new(
-			find_term  => $self->{find_term},
-			find_case  => $self->{find_case},
-			find_regex => $self->{find_regex},
+			find_term    => $self->{find_term},
+			find_case    => $self->{find_case},
+			find_regex   => $self->{find_regex},
+			replace_term => $self->{replace_term},
 		) or return;
 	}
 
@@ -79,9 +83,9 @@ sub run {
 	while (@queue) {
 
 		# Abort the task if we've been cancelled
-		if ( $self->cancel ) {
+		if ( $self->cancelled ) {
 			TRACE('Padre::Wx::Directory::Search task has been cancelled') if DEBUG;
-			$self->handle->status;
+			$self->tell_status;
 			return 1;
 
 		}
@@ -98,7 +102,7 @@ sub run {
 		closedir DIRECTORY;
 
 		# Notify our parent we are working on this directory
-		$self->handle->status( "Searching... " . $parent->unix );
+		$self->tell_status( "Searching... " . $parent->unix );
 
 		my @children = ();
 		foreach my $file (@list) {
@@ -108,9 +112,9 @@ sub run {
 			next if $file =~ /^\.git$/;
 
 			# Abort the task if we've been cancelled
-			if ( $self->cancel ) {
+			if ( $self->cancelled ) {
 				TRACE('Padre::Wx::Directory::Search task has been cancelled') if DEBUG;
-				$self->handle->status;
+				$self->tell_status;
 				return 1;
 			}
 
@@ -134,6 +138,10 @@ sub run {
 				warn "Unknown or unsupported file type for $fullname";
 				next;
 			}
+			unless ( -w _ ) {
+				warn "No write permissions for $fullname";
+				next;
+			}
 
 			# This is a file
 			my $object = Padre::Wx::Directory::Path->file( @path, $file );
@@ -152,32 +160,58 @@ sub run {
 
 			# Read the entire file
 			open( my $fh, '<', $fullname ) or next;
+			binmode($fh);
 			my $buffer = do { local $/; <$fh> };
 			close $fh;
 
-			# Hand off to the compiled search object
-			my @lines = $self->{search}->match_lines(
-				$buffer,
-				$self->{search}->search_regex,
-			);
-			TRACE( "Found " . scalar(@lines) . " matches in " . $fullname ) if DEBUG;
-			next unless @lines;
+			# Is this the correct MIME type
+			if ( $self->{mime} ) {
+				require Padre::MIME;
+				my $type = Padre::MIME->detect(
+					file => $fullname,
+					text => $buffer,
+				);
+				unless ( defined $type and $type eq $self->{mime} ) {
+					TRACE("Skipped $fullname: Not a $self->{mime} (got " . ($type || 'undef') . ")") if DEBUG;
+					next;
+				}
+			}
 
-			# Found results, inform our owner
-			$self->message( OWNER => $object, @lines );
+			# Allow the search object to do the main work
+			local $@;
+			my $count = eval { $self->{search}->replace_all( \$buffer ) };
+			if ($@) {
+				TRACE("Replace crashed in $fullname") if DEBUG;
+				$self->tell_owner( $object, -1 );
+				next;
+			}
+			next unless $count;
+
+			# Save the changed file
+			TRACE("Replaced $count matches in $fullname") if DEBUG;
+			unless ( $self->{dryrun} ) {
+				open( my $fh, '>', $fullname ) or next;
+				binmode($fh);
+				local $/;
+				$fh->print($buffer);
+				close $fh;
+			}
+
+			# Made changes, inform out owner
+			$self->tell_owner( $object, $count );
 		}
 		unshift @queue, @children;
 	}
 
 	# Notify our parent we are finished searching
-	$self->handle->status;
+	$self->tell_status;
 
 	return 1;
 }
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.

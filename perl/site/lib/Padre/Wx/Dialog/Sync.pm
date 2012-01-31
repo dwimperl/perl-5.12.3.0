@@ -6,7 +6,7 @@ use warnings;
 use Padre::Sync          ();
 use Padre::Wx::FBP::Sync ();
 
-our $VERSION = '0.90';
+our $VERSION = '0.94';
 our @ISA     = 'Padre::Wx::FBP::Sync';
 
 sub new {
@@ -76,7 +76,7 @@ sub btn_login {
 			Wx::MessageBox(
 				sprintf('Successfully logged out.'),
 				Wx::gettext('Error'),
-				Wx::wxOK,
+				Wx::OK,
 				$self,
 			);
 			$self->{btn_login}->SetLabel('Log in');
@@ -84,7 +84,7 @@ sub btn_login {
 			Wx::MessageBox(
 				sprintf('Failed to log out.'),
 				Wx::gettext('Error'),
-				Wx::wxOK,
+				Wx::OK,
 				$self,
 			);
 		}
@@ -97,7 +97,7 @@ sub btn_login {
 		Wx::MessageBox(
 			sprintf( Wx::gettext('Please input a valid value for both username and password') ),
 			Wx::gettext('Error'),
-			Wx::wxOK,
+			Wx::OK,
 			$self,
 		);
 		return;
@@ -116,7 +116,7 @@ sub btn_login {
 	Wx::MessageBox(
 		sprintf( '%s', $rc ),
 		Wx::gettext('Error'),
-		Wx::wxOK,
+		Wx::OK,
 		$self,
 	);
 
@@ -140,7 +140,7 @@ sub btn_register {
 		Wx::MessageBox(
 			sprintf( Wx::gettext('Please ensure all inputs have appropriate values.') ),
 			Wx::gettext('Error'),
-			Wx::wxOK,
+			Wx::OK,
 			$self,
 		);
 		return;
@@ -151,7 +151,7 @@ sub btn_register {
 		Wx::MessageBox(
 			sprintf( Wx::gettext('Password and confirmation do not match.') ),
 			Wx::gettext('Error'),
-			Wx::wxOK,
+			Wx::OK,
 			$self,
 		);
 		return;
@@ -161,7 +161,7 @@ sub btn_register {
 		Wx::MessageBox(
 			sprintf( Wx::gettext('Email and confirmation do not match.') ),
 			Wx::gettext('Error'),
-			Wx::wxOK,
+			Wx::OK,
 			$self,
 		);
 		return;
@@ -181,7 +181,7 @@ sub btn_register {
 	Wx::MessageBox(
 		sprintf( '%s', $rc ),
 		Wx::gettext('Error'),
-		Wx::wxOK,
+		Wx::OK,
 		$self,
 	);
 }
@@ -192,7 +192,7 @@ sub btn_local {
 	Wx::MessageBox(
 		sprintf( '%s', $rc ),
 		Wx::gettext('Error'),
-		Wx::wxOK,
+		Wx::OK,
 		$self,
 	);
 }
@@ -203,7 +203,7 @@ sub btn_remote {
 	Wx::MessageBox(
 		sprintf( '%s', $rc ),
 		Wx::gettext('Error'),
-		Wx::wxOK,
+		Wx::OK,
 		$self,
 	);
 }
@@ -214,7 +214,7 @@ sub btn_delete {
 	Wx::MessageBox(
 		sprintf( '%s', $rc ),
 		Wx::gettext('Error'),
-		Wx::wxOK,
+		Wx::OK,
 		$self,
 	);
 
@@ -235,7 +235,7 @@ sub btn_ok {
 
 1;
 
-# Copyright 2008-2011 The Padre development team as listed in Padre.pm.
+# Copyright 2008-2012 The Padre development team as listed in Padre.pm.
 # LICENSE
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl 5 itself.
