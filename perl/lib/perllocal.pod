@@ -7566,3 +7566,25 @@ C<EXE_FILES: bin/instmodsh>
 
 =back
 
+=head2 Tue Jan 31 17:51:21 2012: C<Module> L<Carp|Carp>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.23>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
