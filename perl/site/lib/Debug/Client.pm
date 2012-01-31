@@ -1,12 +1,18 @@
 package Debug::Client;
+
+use 5.008005;
 use strict;
 use warnings;
-use 5.006;
 
-our $VERSION = '0.12';
+our $VERSION = '0.16';
 
+use utf8;
 use IO::Socket;
-use Carp ();
+use Carp qw(carp croak cluck);
+
+use constant {
+	BLANK => qq{ },
+};
 
 =head1 NAME
 
@@ -16,10 +22,10 @@ Debug::Client - client side code for perl debugger
 
   use Debug::Client;
   my $debugger = Debug::Client->new(host => $host, port => $port);
-  $debugger->listen;
+  $debugger->listener;
 
-Where $host is the hostname to be used by the script under test (SUT)
-to acces the machine where Debug::Client runs. If they are on the same machine
+Where $host is the host-name to be used by the script under test (SUT)
+to access the machine where Debug::Client runs. If they are on the same machine
 this should be C<localhost>.
 $port can be any port number where the Debug::Client could listen.
 
@@ -32,7 +38,7 @@ then running
 
   perl -d script
 
-Once the script under test wa launched we can call the following:
+Once the script under test was launched we can call the following:
 
   my $out = $debugger->get;
 
@@ -60,13 +66,13 @@ Once the script under test wa launched we can call the following:
   my $value = $debugger->get_value('%phone_book');  $value is the dumped data?
   
   
-  $debugger->set_breakpoint( "file", 23 ); # 	set breakpoint on file, line
+  $debugger->set_breakpoint( "file", 23 ); # set breakpoint on file, line
 
   $debugger->get_stack_trace
 
 Other planned methods:
 
-  $debugger->set_breakpoint( "file", 23, COND ); # 	set breakpoint on file, line, on condition
+  $debugger->set_breakpoint( "file", 23, COND ); # set breakpoint on file, line, on condition
   $debugger->set_breakpoint( "file", subname, [COND] )
 
   $debugger->set_watch
@@ -83,7 +89,7 @@ Other planned methods:
   
   my $perl = $^X; # the perl might be a different perl
   my $host = 'localhost';
-  my $port = 12345;
+  my $port = 24642;
   my $pid = fork();
   die if not defined $pid;
   
@@ -98,7 +104,7 @@ Other planned methods:
     host => $host,
     port => $port,
   );
-  $debugger->listen;
+  $debugger->listener;
   my $out = $debugger->get;
   $out = $debugger->step_in;
   # ...
@@ -111,13 +117,13 @@ Other planned methods:
 
 The constructor can get two parameters: host and port.
 
-  my $d = Debug::Client->new;
+  my $debugger = Debug::Client->new;
 
-  my $d = Debug::Client->new(host => 'remote.hots.com', port => 4242);
+  my $debugger = Debug::Client->new(host => 'remote.hots.com', port => 24642);
    
 Immediately after the object creation one needs to call
 
-  $d->listen;
+  $debugger->listener;
   
 TODO: Is there any reason to separate the two?
 
@@ -128,7 +134,7 @@ sub new {
 	my $self = bless {}, $class;
 
 	%args = (
-		host => 'localhost', port => 12345,
+		host => 'localhost', port => 24642,
 		%args
 	);
 
@@ -138,13 +144,36 @@ sub new {
 	return $self;
 }
 
-=head2 listen
+=head1 Warning sub listen has bean deprecated
 
-See C<new>
+Has bean deprecated since 0.13_04 and all future versions starting with v0.14
+
+Perl::Critic Error Subroutine name is a homonym for built-in function
+
+Use $debugger->listener instead
 
 =cut
 
-sub listen {
+# sub listen {
+# my ( $self, @args ) = @_;
+# $self->listener(@args);
+# return;
+# }
+
+=head2 listener
+
+listener/hearken To listen attentively; give heed.
+
+See C<new>
+
+ $debugger->listener
+
+=cut
+
+#######
+# Method listener
+#######
+sub listener {
 	my ($self) = @_;
 
 	# Open the socket the debugger will connect to.
@@ -153,9 +182,11 @@ sub listen {
 		LocalPort => $self->{port},
 		Proto     => 'tcp',
 		Listen    => SOMAXCONN,
-		Reuse     => 1
+
+		# Reuse     => 1,	#(deprecated, prefer ReuseAddr)
+		ReuseAddr => 1,
 	);
-	$sock or die "Could not connect to '$self->{host}' '$self->{port}' no socket :$!";
+	$sock or carp "Could not connect to '$self->{host}' '$self->{port}' no socket :$!";
 	_logger("listening on '$self->{host}:$self->{port}'");
 	$self->{sock} = $sock;
 
@@ -172,6 +203,9 @@ Returns the content of the buffer since the last command
 
 =cut
 
+#######
+# Method buffer
+#######
 sub buffer {
 	my ($self) = @_;
 	return $self->{buffer};
@@ -179,32 +213,107 @@ sub buffer {
 
 =head2 quit
 
+ $debugger->quit();
+
 =cut
 
-sub quit { $_[0]->_send('q') }
+#######
+# Method quit
+#######
+sub quit {
+	my $self = shift;
+	return $self->_send('q');
+}
 
 =head2 show_line
 
+.
+
+Return the internal debugger pointer to the line last executed, and print out that line.
+
+ $debugger->show_line();
+
 =cut
 
-sub show_line { $_[0]->send_get('.') }
+#######
+# Method show_line
+#######
+sub show_line {
+	my $self = shift;
+
+	# return $self->_send_get('.');
+	$self->_send('.');
+	my $buf = $self->_get;
+
+	$self->_prompt( \$buf );
+	return $buf;
+}
+
+=head2 show_view
+
+v [line]
+
+View a few lines of code around the current line.
+
+ $debugger->show_view();
+
+=cut
+
+#######
+# Method show_line
+#######
+sub show_view {
+	my $self = shift;
+
+	# return $self->_send_get('.');
+	$self->_send('v');
+	my $buf = $self->_get;
+
+	$self->_prompt( \$buf );
+	return $buf;
+}
+
 
 
 =head2 step_in
 
+s [expr]
+
+Single step. 
+Executes until the beginning of another statement, descending into subroutine calls. 
+If an expression is supplied that includes function calls, it too will be single-stepped.
+
+ $debugger->step_in();
+
+Expressions not supported. 
+
 =cut
 
-sub step_in { $_[0]->send_get('s') }
+#######
+# Method step_in
+#######
+sub step_in {
+	my $self = shift;
+	return $self->_send_get('s');
+}
 
 =head2 step_over
 
+ $debugger->step_over();
+
 =cut
 
-sub step_over { $_[0]->send_get('n') }
+#######
+# Method step_over
+#######
+sub step_over {
+	my $self = shift;
+	return $self->_send_get('n');
+}
 
 =head2 step_out
 
- my ($prompt, $module, $file, $row, $content, $return_value) = $debugger->step_out;
+ my ($prompt, $module, $file, $row, $content, $return_value) = $debugger->step_out();
 
 Where $prompt is just a number, probably useless
 
@@ -222,7 +331,7 @@ or when some of the elements of the returned array are themselves references
 sub step_out {
 	my ($self) = @_;
 
-	Carp::croak('Must call step_out in list context') if not wantarray;
+	carp('Must call step_out in list context') if not wantarray;
 
 	$self->_send('r');
 	my $buf = $self->_get;
@@ -266,6 +375,7 @@ when called in array context.
 
 =cut
 
+#T Produce a stack backtrace.
 sub get_stack_trace {
 	my ($self) = @_;
 	$self->_send('T');
@@ -275,39 +385,89 @@ sub get_stack_trace {
 	return $buf;
 }
 
+=head2 toggle_trace
+
+Sends the stack trace command C<t> Toggle trace mode.
+
+ $debugger->toggle_trace();
+
+=cut
+
+#######
+# sub toggle_trace
+#######
+sub toggle_trace {
+	my ($self) = @_;
+
+	$self->_send('t');
+	my $buf = $self->_get;
+
+	$self->_prompt( \$buf );
+	return $buf;
+}
+
+=head2 list_subroutine_names
+
+Sends the stack trace command C<S> [[!]pattern] 
+List subroutine names [not] matching pattern.
+
+=cut
+
+#######
+# sub list_subroutine_names
+#######
+sub list_subroutine_names {
+	my ( $self, $pattern ) = @_;
+
+	if ( defined $pattern ) {
+		$self->_send("S $pattern");
+	} else {
+		$self->_send('S');
+	}
+
+	my $buf = $self->_get;
+
+	$self->_prompt( \$buf );
+	return $buf;
+}
+
 =head2 run
 
-  $d->run;
+  $debugger->run;
   
 Will run till the next breakpoint or watch or the end of
 the script. (Like pressing c in the debugger).
 
-  $d->run($param)
+  $debugger->run($param)
 
 =cut
 
 sub run {
 	my ( $self, $param ) = @_;
 	if ( not defined $param ) {
-		$self->send_get('c');
+		return $self->_send_get('c');
 	} else {
-		$self->send_get("c $param");
+		return $self->_send_get("c $param");
 	}
+
 }
 
 
 =head2 set_breakpoint
 
- $d->set_breakpoint($file, $line, $condition);
+ $debugger->set_breakpoint($file, $line, $condition);
 
 =cut
-
 
 sub set_breakpoint {
 	my ( $self, $file, $line, $cond ) = @_;
 
 	$self->_send("f $file");
+
+	# $self->_send("b $file");
 	my $b = $self->_get;
+
+	# print $b . "\n";
 
 	# Already in t/eg/02-sub.pl.
 
@@ -315,7 +475,9 @@ sub set_breakpoint {
 
 	# if it was successful no reply
 	# if it failed we saw two possible replies
-	my $buf    = $self->_get;
+	my $buf = $self->_get;
+
+	# print $buf . "\n";
 	my $prompt = $self->_prompt( \$buf );
 	if ( $buf =~ /^Subroutine [\w:]+ not found\./ ) {
 
@@ -332,6 +494,12 @@ sub set_breakpoint {
 	return 1;
 }
 
+=head2 remove_breakpoint
+
+ $debugger->remove_breakpoint( $self, $file, $line );
+
+=cut
+
 # apparently no clear success/error report for this
 sub remove_breakpoint {
 	my ( $self, $file, $line ) = @_;
@@ -344,20 +512,39 @@ sub remove_breakpoint {
 	return 1;
 }
 
+=head2 show_breakpoints
+
+The data as (L) prints in the command line debugger.
+
+ $debugger->show_breakpoints();
+
+=cut
+
+#######
+# show_breakpoints
+#######
+sub show_breakpoints {
+	my ($self) = @_;
+
+	my $ret = $self->_send_get('L');
+
+	return $ret;
+}
+
 =head2 list_break_watch_action
 
 In scalar context returns the list of all the breakpoints 
 and watches as a text output. The data as (L) prints in the
 command line debugger.
 
-In list context it returns the promt number,
+In list context it returns the prompt number,
 and a list of hashes. Each hash has
 
   file =>
   line =>
   cond => 
 
-to provide the filename, line number and the condition of the breakpoint.
+to provide the file-name, line number and the condition of the breakpoint.
 In case of no condition the last one will be the number 1.
 
 =cut
@@ -365,10 +552,13 @@ In case of no condition the last one will be the number 1.
 sub list_break_watch_action {
 	my ($self) = @_;
 
-	my $ret = $self->send_get('L');
+	my $ret = $self->_send_get('L');
 	if ( not wantarray ) {
 		return $ret;
 	}
+
+	# short cut for direct output
+	# return $ret;
 
 	# t/eg/04-fib.pl:
 	#  17:      my $n = shift;
@@ -392,17 +582,16 @@ sub list_break_watch_action {
 			);
 			push @breakpoints, \%bp;
 		} else {
-			die "No breakpoint found in '$buf'";
+			carp "No breakpoint found in '$buf'";
 		}
 	}
 
 	return ( $prompt, \@breakpoints );
 }
 
-
 =head2 execute_code
 
-  $d->execute_code($some_code_to_execute);
+  $debugger->execute_code($some_code_to_execute);
 
 =cut
 
@@ -419,7 +608,7 @@ sub execute_code {
 
 =head2 get_value
 
- my $value = $d->get_value($x);
+ my $value = $debugger->get_value($x);
 
 If $x is a scalar value, $value will contain that value.
 If it is a reference to a SCALAR, ARRAY or HASH then $value should be the
@@ -431,10 +620,9 @@ value of that reference?
 # or its user) should actually call   x $var
 sub get_value {
 	my ( $self, $var ) = @_;
-	die "no parameter given\n" if not defined $var;
 
-	if ( $var =~ /^\$/ ) {
-		$self->_send("p $var");
+	if ( not defined $var ) {
+		$self->_send('p');
 		my $buf = $self->_get;
 		$self->_prompt( \$buf );
 		return $buf;
@@ -444,120 +632,211 @@ sub get_value {
 		$self->_prompt( \$buf );
 		my $data_ref = _parse_dumper($buf);
 		return $data_ref;
+	} else {
+		$self->_send("p $var");
+		my $buf = $self->_get;
+		$self->_prompt( \$buf );
+		return $buf;
 	}
-	die "Unknown parameter '$var'\n";
 }
 
-sub _parse_dumper {
-	my ($str) = @_;
-	return $str;
-}
+=head2 get_p_exp
 
-# TODO shall we add a timeout and/or a number to count down the number
-# sysread calls that return 0 before deciding it is really done
-sub _get {
-	my ($self) = @_;
+p expr
 
-	#my $remote_host = gethostbyaddr($sock->sockaddr(), AF_INET) || 'remote';
-	my $buf = '';
-	while ( $buf !~ /DB<\d+>/ ) {
-		my $ret = $self->{new_sock}->sysread( $buf, 1024, length $buf );
-		if ( not defined $ret ) {
-			die $!; # TODO better error handling?
-		}
-		_logger("---- ret '$ret'\n$buf\n---");
-		if ( not $ret ) {
-			last;
-		}
-	}
-	_logger("_get done");
+Same as print {$DB::OUT} expr in the current package. 
+In particular, because this is just Perl's own print function, 
+this means that nested data structures and objects are not dumped, 
+unlike with the x command.
 
-	$self->{buffer} = $buf;
+The DB::OUT filehandle is opened to /dev/tty, 
+regardless of where STDOUT may be redirected to.
+From perldebug, but defaulted to y 0
+
+  $debugger->get_p_exp();
+
+=cut
+
+#######
+# sub get_p_exp
+#######
+sub get_p_exp {
+	my ( $self, $exp ) = @_;
+
+	$self->_send("p $exp");
+	my $buf = $self->_get;
+	$self->_prompt( \$buf );
 	return $buf;
 }
 
-# This is an internal method.
-# It takes one argument which is a reference to a scalar that contains the
-# the text sent by the debugger.
-# Extracts and prompt that looks like this:   DB<3> $
-# puts the number from the prompt in $self->{prompt} and also returns it.
-# See 00-internal.t for test cases
-sub _prompt {
-	my ( $self, $buf ) = @_;
+=head2 get_y_zero
 
-	if ( not defined $buf or not ref $buf or ref $buf ne 'SCALAR' ) {
-		Carp::croak('_prompt should be called with a reference to a scalar');
-	}
+From perldebug, but defaulted to y 0
 
-	my $prompt;
-	if ( $$buf =~ s/\s*DB<(\d+)>\s*$// ) {
-		$prompt = $1;
-	}
-	chomp($$buf);
+ y [level [vars]]
 
-	return $self->{prompt} = $prompt;
+Display all (or some) lexical variables (mnemonic: mY variables) in the current 
+scope or level scopes higher. You can limit the variables that you see with vars 
+which works exactly as it does for the V and X commands. Requires the PadWalker 
+module version 0.08 or higher; will warn if this isn't installed. 
+Output is pretty-printed in the same style as for V and the format is controlled by the same options.
+
+  $debugger->get_y_zero();
+
+=cut
+
+#######
+# sub get_y_zero
+#######
+sub get_y_zero {
+	my $self = shift;
+
+	$self->_send("y 0");
+	my $buf = $self->_get;
+	$self->_prompt( \$buf );
+	return $buf;
 }
 
-# Internal method that receives a reference to a scalar
-# containing the data printed by the debugger
-# If the output indicates that the debugger terminated return '<TERMINATED>'
-# Otherwise it returns   ( $package, $file, $row, $content );
-# where
-#    $package   is  main::   or   Some::Module::   (the current package)
-#    $file      is the full or relative path to the current file
-#    $row       is the current row number
-#    $content   is the content of the current row
-# see 00-internal.t for test cases
-sub _process_line {
-	my ( $self, $buf ) = @_;
+=head2 get_v_vars
 
-	if ( not defined $buf or not ref $buf or ref $buf ne 'SCALAR' ) {
-		Carp::croak('_process_line should be called with a reference to a scalar');
-	}
+V [pkg [vars]]
 
-	if ( $$buf =~ /Debugged program terminated/ ) {
-		return '<TERMINATED>';
-	}
+Display all (or some) variables in package (defaulting to main ) 
+using a data pretty-printer (hashes show their keys and values so you see what's what, 
+control characters are made printable, etc.). 
+Make sure you don't put the type specifier (like $ ) there, just the symbol names, like this:
 
-	my @parts = split /\n/, $$buf;
-	my $line = pop @parts;
+ $debugger->get_v_vars(regex);
 
-	# try to debug some test reports
-	# http://www.nntp.perl.org/group/perl.cpan.testers/2009/12/msg6542852.html
-	if ( not defined $line ) {
-		Carp::croak("Debug::Client: Line is undef. Buffer is '$$buf'");
-	}
-	_logger("Line: '$line'");
-	my $cont;
-	if ( $line =~ /^\d+:   \s*  (.*)$/x ) {
-		$cont = $1;
-		$line = pop @parts;
-		_logger("Line2: '$line'");
-	}
+=cut
 
-	$$buf = join "\n", @parts;
-	my ( $module, $file, $row, $content );
+#######
+# sub get_v_vars
+#######
+sub get_v_vars {
+	my ( $self, $pattern ) = @_;
 
-	# the last line before
-	# main::(t/eg/01-add.pl:8):  my $z = $x + $y;
-	if ($line =~ /^([\w:]*)                  # module
-                  \(   ([^\)]*):(\d+)   \)   # (file:row)
-                  :\t?                        # :
-                  (.*)                       # content
-                  /mx
-		)
-	{
-		( $module, $file, $row, $content ) = ( $1, $2, $3, $4 );
+	if ( defined $pattern ) {
+		$self->_send("V $pattern");
+	} else {
+		$self->_send('V');
 	}
-	if ($cont) {
-		$content = $cont;
-	}
-	$self->{filename} = $file;
-	$self->{row}      = $row;
-	return ( $module, $file, $row, $content );
+	my $buf = $self->_get;
+	$self->_prompt( \$buf );
+	return $buf;
 }
 
-=head get
+=head2 get_x_vars
+
+X [vars] Same as V currentpackage [vars]
+
+ $debugger->get_v_vars(regex);
+
+=cut
+
+#######
+# sub get_x_vars
+#######
+sub get_x_vars {
+	my ( $self, $pattern ) = @_;
+
+	if ( defined $pattern ) {
+		$self->_send("X $pattern");
+	} else {
+		$self->_send('X');
+	}
+
+	my $buf = $self->_get;
+	$self->_prompt( \$buf );
+	return $buf;
+}
+
+=head2 get_h_var
+
+Enter h or `h h' for help,
+For more help, type h cmd_letter, optional var
+
+ $debugger->get_h_var();
+
+=cut
+
+#######
+# sub get_h_var
+#######
+sub get_h_var {
+	my ( $self, $var ) = @_;
+
+	if ( defined $var ) {
+		$self->_send("h $var");
+	} else {
+		$self->_send('h');
+	}
+
+	my $buf = $self->_get;
+	$buf =~ s/(\e\[4m|\e\[24m|\e\[1m|\e\[0m)//mg;
+	$self->_prompt( \$buf );
+	return $buf;
+}
+
+=head2 set_option
+
+o booloption ...
+
+Set each listed Boolean option to the value 1 .
+o anyoption? ...
+
+Print out the value of one or more options.
+o option=value ...
+
+Set the value of one or more options. If the value has internal whitespace, it should be quoted. For example, you could set o pager="less -MQeicsNfr" to call less with those specific options. You may use either single or double quotes, but if you do, you must escape any embedded instances of same sort of quote you began with, as well as any escaping any escapes that immediately precede that quote but which are not meant to escape the quote itself. In other words, you follow single-quoting rules irrespective of the quote; eg: o option='this isn\'t bad' or o option="She said, \"Isn't it?\"" .
+
+For historical reasons, the =value is optional, but defaults to 1 only where it is safe to do so--that is, mostly for Boolean options. It is always better to assign a specific value using = . The option can be abbreviated, but for clarity probably should not be. Several options can be set together. See Configurable Options for a list of these.
+
+ $debugger->set_option();
+
+=cut
+
+#######
+# Internal Method _set_option
+#######
+sub set_option {
+	my ( $self, $option ) = @_;
+
+	unless ( defined $option ) {
+		return;
+	}
+
+	$self->_send("o $option");
+	my $buf = $self->_get;
+	$self->_prompt( \$buf );
+	return $buf;
+
+}
+
+=head2 get_options
+
+o
+
+Display all options.
+
+ $debugger->get_options();
+
+=cut
+
+#######
+# Internal Method _get_options
+#######
+sub get_options {
+	my $self = shift;
+
+	$self->_send('o');
+	my $buf = $self->_get;
+	$self->_prompt( \$buf );
+	return $buf;
+
+}
+
+=head2 get
 
 Actually I think this is an internal method....
 
@@ -586,31 +865,328 @@ sub get {
 	}
 }
 
+
+=head2 filename
+
+ $debugger->filename();
+
+=cut
+
+#######
+# Method filename
+#######
+sub filename {
+	my $self = shift;
+
+	return $self->{filename};
+}
+
+=head2 row
+
+ $debugger->row();
+
+=cut
+
+#######
+# Method row
+#######
+sub row {
+	my $self = shift;
+
+	return $self->{row};
+}
+
+=head2 module
+
+ $debugger->module();
+
+=cut
+
+#######
+# Method module
+#######
+sub module {
+	my $self = shift;
+
+	return $self->{module};
+}
+#########################################
+#### Internal Methods
+#######
+# Internal Method _get
+#######
+# TODO shall we add a timeout and/or a number to count down the number
+# sysread calls that return 0 before deciding it is really done
+sub _get {
+	my ($self) = @_;
+
+	#my $remote_host = gethostbyaddr($sock->sockaddr(), AF_INET) || 'remote';
+	my $buf = q{};
+	my $ret;
+	while ( $buf !~ /DB<\d+>/ ) {
+		$ret = $self->{new_sock}->sysread( $buf, 1024, length $buf );
+		if ( not defined $ret ) {
+			carp $!; # TODO better error handling?
+		}
+
+		# _logger("---- ret '$ret'\n$buf\n---");
+		if ( not $ret ) {
+			last;
+		}
+	}
+	_logger("---- ret $ret\n$buf\n---");
+	_logger("_get done");
+
+	$self->{buffer} = $buf;
+	return $buf;
+}
+
+#######
+# Internal Method _logger
+#######
+sub _logger {
+	print "LOG: $_[0]\n" if $ENV{DEBUG_LOGGER};
+	return;
+}
+
+#######
+# Internal Method _parse_dumper
+#######
+sub _parse_dumper {
+	my ($str) = @_;
+	return $str;
+}
+
+#######
+# Internal Method _process_line
+#######
+# Internal method that receives a reference to a scalar
+# containing the data printed by the debugger
+# If the output indicates that the debugger terminated return '<TERMINATED>'
+# Otherwise it returns   ( $package, $file, $row, $content );
+# where
+#    $package   is  main::   or   Some::Module::   (the current package)
+#    $file      is the full or relative path to the current file
+#    $row       is the current row number
+#    $content   is the content of the current row
+# see 00-internal.t for test cases
+sub _process_line {
+	my ( $self, $buf ) = @_;
+
+	if ( not defined $buf or not ref $buf or ref $buf ne 'SCALAR' ) {
+		carp('_process_line should be called with a reference to a scalar');
+	}
+
+	if ( $$buf =~ /Debugged program terminated/ ) {
+		return '<TERMINATED>';
+	}
+
+	my @parts = split /\n/, $$buf;
+	
+	my $line = BLANK;
+	my $module  = BLANK;
+	my $file    = BLANK;
+	my $row     = BLANK;
+	my $content = BLANK;
+	$line = pop @parts;
+
+	#TODO $line is where all CPAN_Testers errors come from
+	# try to debug some test reports
+	# http://www.nntp.perl.org/group/perl.cpan.testers/2009/12/msg6542852.html
+	if ( not defined $line ) {
+		croak("Debug::Client: Line is undef. Buffer is $$buf");
+	}
+
+	# _logger("Line1: $line");
+	my $cont = 0;
+	if ($line) {
+		if ( $line =~ /^\d+:   \s*  (.*)$/x ) {
+			$cont = $1;
+			$line = pop @parts;
+			# my $next_line = pop @parts;
+		# if ( defined $next_line ) {
+			# $line = pop @parts;
+		# }
+
+			# _logger("Line2: $line");
+		}
+	}
+
+	$$buf = join "\n", @parts;
+	# my ( $module, $file, $row, $content ) = q{ };
+
+	# the last line before
+	# main::(t/eg/01-add.pl:8):  my $z = $x + $y;
+
+	if ( $line =~ m{^([\w:]*) 			# module
+                  \( ([^\)]*):(\d+) \) 	# (file:row)
+                  :\t? 					# :
+                  (.*) 					# content
+                  }mx
+		)
+	{
+		( $module, $file, $row, $content ) = ( $1, $2, $3, $4 );
+	}
+	if ( $module eq BLANK || $file eq BLANK || $row eq BLANK ) {
+
+# 		# unless ( defined $module || defined $file || defined $row ) {
+		my $current_file = $self->show_line();
+		# p $current_file;
+
+		$current_file =~ m/^([\w:]*) \( (.*) : (\d+) .* /mx;
+
+		$module  = $1;
+		$file    = $2;
+		$row     = $3;
+		# p $module;
+		# p $file;
+		# p $row;
+	}
+	
+	if ($cont) {
+		$content = $cont;
+	}
+
+	# if ($file) {
+
+# # 		$self->{filename} = $file;
+
+# # 		# print "filename: $self->{filename}\n";
+	# }	
+	$self->{module}   = $module;
+	$self->{filename} = $file;
+	$self->{row} = $row;
+	return ( $module, $file, $row, $content );
+}
+
+
+
+
+#######
+# Internal Method _prompt
+#######
+# It takes one argument which is a reference to a scalar that contains the
+# the text sent by the debugger.
+# Extracts and prompt that looks like this:   DB<3> $
+# puts the number from the prompt in $self->{prompt} and also returns it.
+# See 00-internal.t for test cases
+sub _prompt {
+	my ( $self, $buf ) = @_;
+
+	# _logger("-prompt buf: $$buf");
+
+	if ( not defined $buf or not ref $buf or ref $buf ne 'SCALAR' ) {
+		croak('_prompt should be called with a reference to a scalar');
+	}
+
+	my $prompt;
+	if ( $$buf =~ s/\s*DB<(\d+)>\s*$// ) {
+		$prompt = $1;
+		_logger("prompt: $prompt");
+	}
+	chomp($$buf);
+
+	return $self->{prompt} = $prompt;
+}
+
+#######
+# Internal Method _send
+#######
 sub _send {
 	my ( $self, $input ) = @_;
 
 	#print "Sending '$input'\n";
 	print { $self->{new_sock} } "$input\n";
+
+	return 1;
 }
 
-sub send_get {
+#######
+# Internal Method _send_get
+#######
+sub _send_get {
 	my ( $self, $input ) = @_;
 	$self->_send($input);
 
 	return $self->get;
 }
 
-sub filename { return $_[0]->{filename} }
-sub row      { return $_[0]->{row} }
+#######
+# Internal Method __send_padre
+# hidden undocumented
+######
+sub __send {
+	my ( $self, $input ) = @_;
+	$self->_send($input);
 
-sub _logger {
-	print "LOG: $_[0]\n" if $ENV{DEBUG_LOGGER};
+	my $buf = $self->_get;
+
+	$self->_prompt( \$buf );
+
+	return $buf;
+}
+#######
+# Internal Method __send_np
+# hidden undocumented
+######
+sub __send_np {
+	my ( $self, $input ) = @_;
+	$self->_send($input);
+
+	# print "input: $input\n";
+
+	my $buf = $self->_get;
+
+	# print "buffer: $buf\n";
+
+	return $buf;
 }
 
+1;
 
-=head1 See Also
+__END__
 
-L<GRID::Machine::remotedebugtut>
+=head1 BUGS AND LIMITATIONS
+
+Debug::Client 0.12 tests are failing, due to changes in perl debugger, 
+when using perl5db.pl v1.34
+Debug::Client 0.13_01 skips added to failing tests.
+
+ c [line|sub]
+
+Continue, optionally inserting a one-time-only breakpoint at the specified line or subroutine.
+
+ c is now ignoring options [line|sub]
+
+and just performing c on it's own
+
+=head1 INTERNAL METHODS
+
+=head3 _get
+
+=head3 _logger
+
+=head3 _parse_dumper
+
+=head3 _process_line
+
+=head3 _prompt
+
+=head3 _send
+
+=head3 _send_get
+
+=head3 _set_option
+
+=head1 AUTHORS
+
+Gabor Szabo E<lt>gabor@szabgab.comE<gt>
+
+Breno G. de Oliveira E<lt>garu at cpan.orgE<gt>
+
+Kevin Dawson E<lt>bowtie@cpan.orgE<gt>
+
+Ahmad M. Zawawi E<lt>ahmad.zawawi@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
@@ -632,6 +1208,8 @@ that's your problem.
 Originally started out from the remoteport.pl script from 
 Pro Perl Debugging written by Richard Foley.
 
-=cut
+=head1 See Also
 
-1;
+L<GRID::Machine::remotedebugtut>
+
+=cut
