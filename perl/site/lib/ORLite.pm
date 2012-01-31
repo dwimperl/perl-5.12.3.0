@@ -14,7 +14,7 @@ use DBD::SQLite  1.27 ();
 
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '1.50';
+	$VERSION = '1.51';
 }
 
 # Support for the 'prune' option
@@ -337,9 +337,10 @@ END_PERL
 	}
 
 	# Optionally generate the table classes
+	my $tables = undef;
 	if ( $params{tables} ) {
 		# Capture the raw schema table information
-		my $tables = $dbh->selectall_arrayref(
+		$tables = $dbh->selectall_arrayref(
 			'select * from sqlite_master where name not like ? and type in ( ?, ? )',
 			{ Slice => {} }, 'sqlite_%', 'table', 'view',
 		);
@@ -711,26 +712,26 @@ END_PERL
 		}
 	}
 
-	# Optionally generate the table classes
-	if ( $params{views} ) {
-		# Capture the raw schema table information
-		my $views = $dbh->selectall_arrayref(
-			'select * from sqlite_master where name not like ? and type = ?',
-			{ Slice => {} }, 'sqlite_%', 'view',
-		);
-		my %vindex = map { $_->{name} => $_ } @$views;
-
-		1;
-	}
-
-	# We are finished with it now
+	# We are finished with the database
 	$dbh->disconnect;
 
-	# Add any custom code to the end
-	if ( defined $params{append} ) {
-		$code .= "\npackage $pkg;\n" if $params{tables};
-		$code .= "\n$params{append}";
+	# Start the post-table content again
+	$code .= "\npackage $pkg;\n" if $params{tables};
+
+	# Append any custom code for the user
+	$code .= "\n$params{append}" if defined $params{append};
+
+	# Load the overload classes for each of the tables
+	if ( $tables ) {
+		$code .= join( "\n",
+			"local \$@ = undef;",
+			map {
+				"eval { require $_->{class} };"
+			} @$tables
+		);
 	}
+
+	# End the class normally
 	$code .= "\n\n1;\n";
 
 	# Save to the cache location if caching is enabled
@@ -872,13 +873,18 @@ code generation to build a set of packages for talking to that database.
 In the simplest form, your target root package "uses" ORLite, which will do
 the schema discovery and code generation at compile-time.
 
-When called, ORLite generates two types of package.
+When called, ORLite generates two types of packages.
 
 Firstly, it builds database connectivity, transaction support, and other
 purely database level functionality into your root namespace.
 
-Then it will create one sub-package underneath the root package for each
-table contained in the database.
+Secondly, it will create one sub-package underneath the namespace of the root
+module for each table or view it finds in the database.
+
+Once the basic table support has been generated, it will also try to load an
+"overlay" module of the same name. Thus, by created a Foo::TableName module on
+disk containing "extra" code, you can extend the original and add additional
+functionality to it.
 
 =head1 OPTIONS
 
