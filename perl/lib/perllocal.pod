@@ -7544,3 +7544,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Tue Jan 31 17:47:18 2012: C<Module> L<ExtUtils::MakeMaker|ExtUtils::MakeMaker>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 6.62>
+
+=item *
+
+C<EXE_FILES: bin/instmodsh>
+
+=back
+
