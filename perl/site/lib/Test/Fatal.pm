@@ -1,8 +1,8 @@
 use strict;
 use warnings;
 package Test::Fatal;
-BEGIN {
-  $Test::Fatal::VERSION = '0.006';
+{
+  $Test::Fatal::VERSION = '0.008';
 }
 # ABSTRACT: incredibly simple helpers for testing code with exceptions
 
@@ -16,18 +16,18 @@ our @EXPORT    = qw(exception);
 our @EXPORT_OK = qw(exception success dies_ok lives_ok);
 
 
-sub exception (&;@) {
+sub exception (&) {
   my $code = shift;
 
   return try {
     $code->();
     return undef;
-  } catch( sub {
+  } catch {
     return $_ if $_;
 
     my $problem = defined $_ ? 'false' : 'undef';
     Carp::confess("$problem exception caught by Test::Fatal::exception");
-  }, @_);
+  };
 }
 
 
@@ -78,7 +78,7 @@ Test::Fatal - incredibly simple helpers for testing code with exceptions
 
 =head1 VERSION
 
-version 0.006
+version 0.008
 
 =head1 SYNOPSIS
 
