@@ -8072,3 +8072,25 @@ C<EXE_FILES: bin/pm-uninstall>
 
 =back
 
+=head2 Mon Feb  6 16:27:57 2012: C<Module> L<Archive::Extract|Archive::Extract>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.58>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
