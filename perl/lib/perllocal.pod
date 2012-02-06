@@ -8710,3 +8710,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Feb  6 20:34:40 2012: C<Module> L<Moo|Moo>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.009013>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
