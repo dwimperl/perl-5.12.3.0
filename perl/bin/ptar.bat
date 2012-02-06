@@ -72,13 +72,13 @@ if( $opts->{c} ) {
     my $print = $verbose || $opts->{'t'} || 0;
 
     my $iter = Archive::Tar->iter( $file );
-        
+
     while( my $f = $iter->() ) {
         print $f->full_path . $/ if $print;
 
         ### data dumper output
         print Dumper( $f ) if $opts->{'D'};
-        
+
         ### extract it
         $f->extract if $opts->{'x'};
     }
@@ -125,10 +125,10 @@ sub usage {
     ### strip the pod directives
     $usage =~ s/=pod\n//g;
     $usage =~ s/=head1 //g;
-    
+
     ### add some newlines
     $usage .= $/.$/;
-    
+
     return $usage;
 }
 
