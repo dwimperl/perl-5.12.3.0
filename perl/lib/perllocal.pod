@@ -8446,3 +8446,25 @@ C<EXE_FILES: script/exe_update.pl>
 
 =back
 
+=head2 Mon Feb  6 19:30:34 2012: C<Module> L<Win32API::File|Win32API::File>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.1200>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
