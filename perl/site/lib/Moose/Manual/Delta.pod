@@ -12,7 +12,7 @@ Moose::Manual::Delta - Important Changes in Moose
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -26,6 +26,58 @@ for finding the lowest version of Moose that supported a given
 feature.  If you encounter a problem and have a solution but don't see
 it documented here, or think we missed an important feature, please
 send us a patch.
+
+=head1 2.0300
+
+=over 4
+
+=item The parent of a union type is its components' nearest common ancestor
+
+Previously, union types considered all of their component types their parent
+types. This was incorrect because parent types are defined as types that must
+be satisfied in order for the child type to be satisfied, but in a union,
+validating as any parent type will validate against the entire union. This has
+been changed to find the nearest common ancestor for all of its components. For
+example, a union of "Int|ArrayRef[Int]" now has a parent of "Defined".
+
+=item Union types consider all members in the C<is_subtype_of> and C<is_a_type_of> methods
+
+Previously, a union type would report itself as being of a subtype of a type if
+I<any> of its member types were subtypes of that type. This was incorrect
+because any value that passes a subtype constraint must also pass a parent
+constraint. This has changed so that I<all> of its member types must be a
+subtype of the specified type.
+
+=item Enum types now work with just one value
+
+Previously, an C<enum> type needed to have two or more values.  Nobody knew
+why, so we fixed it.
+
+=item Methods defined in UNIVERSAL now appear in the MOP
+
+Any method introspection methods that look at methods from parent classes now
+find methods defined in UNIVERSAL. This includes methods like C<<
+$class->get_all_methods >> and C<< $class->find_method_by_name >>.
+
+This also means that you can now apply method modifiers to these methods.
+
+=item Hand-optimized type constraint code causes a deprecation warning
+
+If you provide an optimized sub ref for a type constraint, this now causes a
+deprecation warning. Typically, this comes from passing an C<optimize_as>
+parameter to C<subtype>, but it could also happen if you create a
+L<Moose::Meta::TypeConstraint> object directly.
+
+Use the inlining feature (C<inline_as>) added in 2.0100 instead.
+
+=item C<Class::Load::load_class> and C<is_class_loaded> have been removed
+
+The C<Class::MOP::load_class> and C<Class::MOP::is_class_loaded> subroutines
+are no longer documented, and will cause a deprecation warning in the
+future. Moose now uses L<Class::Load> to provide this functionality, and you
+should do so as well.
+
+=back
 
 =head1 2.0205
 
@@ -54,6 +106,8 @@ This affects the C<optimize_as> sub exported by
 L<Moose::Util::TypeConstraints>. Use C<inline_as> instead.
 
 This will start warning in the 2.0300 release.
+
+=back
 
 =head1 2.0002
 
@@ -974,11 +1028,11 @@ if anyone would like to continue this please feel free.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

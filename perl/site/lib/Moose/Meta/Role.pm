@@ -1,16 +1,16 @@
-
 package Moose::Meta::Role;
 BEGIN {
   $Moose::Meta::Role::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Role::VERSION = '2.0205';
+{
+  $Moose::Meta::Role::VERSION = '2.0402';
 }
 
 use strict;
 use warnings;
 use metaclass;
 
+use Class::Load qw(load_class);
 use Scalar::Util 'blessed';
 use Carp         'confess';
 use Devel::GlobalDestruction 'in_global_destruction';
@@ -49,7 +49,7 @@ my $META = __PACKAGE__->meta;
 
 # NOTE:
 # since roles are lazy, we hold all the attributes
-# of the individual role in 'statis' until which
+# of the individual role in 'stasis' until which
 # time when it is applied to a class. This means
 # keeping a lot of things in hash maps, so we are
 # using a little of that meta-programmin' magic
@@ -456,7 +456,7 @@ sub apply {
         $application_class = $self->application_to_instance_class;
     }
 
-    Class::MOP::load_class($application_class);
+    load_class($application_class);
 
     if ( exists $args{'-excludes'} ) {
         # I wish we had coercion here :)
@@ -743,7 +743,7 @@ Moose::Meta::Role - The Moose Role metaclass
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -1008,11 +1008,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

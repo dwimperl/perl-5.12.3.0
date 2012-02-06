@@ -16,7 +16,7 @@ use Dist::CheckConflicts
         'Markdent' => '0.16',
         'MooseX::Aliases' => '0.08',
         'MooseX::AlwaysCoerce' => '0.13',
-        'MooseX::Attribute::Deflator' => '2.1.5',
+        'MooseX::Attribute::Deflator' => '2.1.7',
         'MooseX::Attribute::Dependent' => '1.1.0',
         'MooseX::Attribute::Prototype' => '0.10',
         'MooseX::AttributeHelpers' => '0.22',
@@ -46,12 +46,17 @@ use Dist::CheckConflicts
         'MooseX::StrictConstructor' => '0.12',
         'MooseX::Types' => '0.19',
         'MooseX::Types::Parameterizable' => '0.05',
+        'MooseX::Types::Signal' => '1.101930',
         'MooseX::UndefTolerant' => '0.11',
+        'PRANG' => '0.14',
         'Pod::Elemental' => '0.093280',
         'Reaction' => '0.002003',
+        'Test::Able' => '0.10',
         'namespace::autoclean' => '0.08',
     },
     -also => [ qw(
+        Class::Load
+        Class::Load::XS
         Data::OptList
         Devel::GlobalDestruction
         Dist::CheckConflicts

@@ -2,8 +2,8 @@ package Moose::Meta::TypeConstraint::Enum;
 BEGIN {
   $Moose::Meta::TypeConstraint::Enum::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::TypeConstraint::Enum::VERSION = '2.0205';
+{
+  $Moose::Meta::TypeConstraint::Enum::VERSION = '2.0402';
 }
 
 use strict;
@@ -42,9 +42,9 @@ sub new {
     $args{parent} = Moose::Util::TypeConstraints::find_type_constraint('Str');
     $args{inlined} = $inliner;
 
-    if ( scalar @{ $args{values} } < 2 ) {
+    if ( scalar @{ $args{values} } < 1 ) {
         require Moose;
-        Moose->throw_error("You must have at least two values to enumerate through");
+        Moose->throw_error("You must have at least one value to enumerate through");
     }
 
     for (@{ $args{values} }) {
@@ -122,7 +122,7 @@ Moose::Meta::TypeConstraint::Enum - Type constraint for enumerated values.
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -172,11 +172,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

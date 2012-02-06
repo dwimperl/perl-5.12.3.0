@@ -3,15 +3,15 @@ package Moose::Meta::Class;
 BEGIN {
   $Moose::Meta::Class::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Class::VERSION = '2.0205';
+{
+  $Moose::Meta::Class::VERSION = '2.0402';
 }
 
 use strict;
 use warnings;
 
+use Class::Load qw(load_class);
 use Class::MOP;
-
 use Carp qw( confess );
 use Data::OptList;
 use List::Util qw( first );
@@ -551,7 +551,7 @@ sub superclasses {
     my $supers = Data::OptList::mkopt(\@_);
     foreach my $super (@{ $supers }) {
         my ($name, $opts) = @{ $super };
-        Class::MOP::load_class($name, $opts);
+        load_class($name, $opts);
         my $meta = Class::MOP::class_of($name);
         $self->throw_error("You cannot inherit from a Moose Role ($name)")
             if $meta && $meta->isa('Moose::Meta::Role')
@@ -808,7 +808,7 @@ sub create_error {
 
     my $class = ref $self ? $self->error_class : "Moose::Error::Default";
 
-    Class::MOP::load_class($class);
+    load_class($class);
 
     $class->new(
         Carp::caller_info($args{depth}),
@@ -830,13 +830,16 @@ sub _inline_create_error {
 
     my $class = ref $self ? $self->error_class : "Moose::Error::Default";
 
-    Class::MOP::load_class($class);
+    load_class($class);
 
     # don't check inheritance here - the intention is that the class needs
     # to provide a non-inherited inlining method, because falling back to
     # the default inlining method is most likely going to be wrong
     # yes, this is a huge hack, but so is the entire error system, so.
-    return '$meta->create_error(' . $msg . ', ' . $args . ');'
+    return
+          '$meta->create_error('
+        . $msg
+        . ( defined $args ? ', ' . $args : q{} ) . ');'
         unless $class->meta->has_method('_inline_new');
 
     $class->_inline_new(
@@ -860,7 +863,7 @@ Moose::Meta::Class - The Moose metaclass
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -920,15 +923,6 @@ Options> option that ensures the loaded superclass satisfies the
 required version. The C<role> option also takes the C<-version> as an
 argument, but the option hash reference can also contain any other
 role relevant values like exclusions or parameterized role arguments.
-
-=item B<< $metaclass->make_immutable(%options) >>
-
-This overrides the parent's method to add a few options. Specifically,
-it uses the Moose-specific constructor and destructor classes, and
-enables inlining the destructor.
-
-Since Moose always inlines attributes, it sets the C<inline_accessors> option
-to false.
 
 =item B<< $metaclass->new_object(%params) >>
 
@@ -1022,11 +1016,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

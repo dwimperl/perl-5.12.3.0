@@ -3,11 +3,12 @@ package Moose::Meta::Attribute::Native::Trait;
 BEGIN {
   $Moose::Meta::Attribute::Native::Trait::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Attribute::Native::Trait::VERSION = '2.0205';
+{
+  $Moose::Meta::Attribute::Native::Trait::VERSION = '2.0402';
 }
 use Moose::Role;
 
+use Class::Load qw(load_class);
 use List::MoreUtils qw( any uniq );
 use Moose::Util::TypeConstraints;
 use Moose::Deprecated;
@@ -182,7 +183,7 @@ sub _native_accessor_class_for {
         . $self->_native_type . '::'
         . $suffix;
 
-    Class::MOP::load_class($role);
+    load_class($role);
     return Moose::Meta::Class->create_anon_class(
         superclasses =>
             [ $self->accessor_metaclass, $self->delegation_metaclass ],
@@ -225,7 +226,7 @@ Moose::Meta::Attribute::Native::Trait - Shared role for native delegation traits
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 BUGS
 
@@ -238,11 +239,11 @@ L<Moose::Meta::Attribute::Native>.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

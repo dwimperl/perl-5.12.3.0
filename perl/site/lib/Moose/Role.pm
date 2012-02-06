@@ -2,14 +2,15 @@ package Moose::Role;
 BEGIN {
   $Moose::Role::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Role::VERSION = '2.0205';
+{
+  $Moose::Role::VERSION = '2.0402';
 }
 use strict;
 use warnings;
 
 use Scalar::Util 'blessed';
 use Carp         'croak';
+use Class::Load  'is_class_loaded';
 
 use Sub::Exporter;
 
@@ -113,7 +114,7 @@ sub init_meta {
     my $meta_name = exists $args{meta_name} ? $args{meta_name} : 'meta';
 
     Moose->throw_error("The Metaclass $metaclass must be loaded. (Perhaps you forgot to 'use $metaclass'?)")
-        unless Class::MOP::is_class_loaded($metaclass);
+        unless is_class_loaded($metaclass);
 
     Moose->throw_error("The Metaclass $metaclass must be a subclass of Moose::Meta::Role.")
         unless $metaclass->isa('Moose::Meta::Role');
@@ -168,7 +169,7 @@ Moose::Role - The Moose Role
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -312,11 +313,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

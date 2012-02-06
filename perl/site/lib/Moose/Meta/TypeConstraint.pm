@@ -3,8 +3,8 @@ package Moose::Meta::TypeConstraint;
 BEGIN {
   $Moose::Meta::TypeConstraint::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::TypeConstraint::VERSION = '2.0205';
+{
+  $Moose::Meta::TypeConstraint::VERSION = '2.0402';
 }
 
 use strict;
@@ -17,6 +17,7 @@ use overload '0+'     => sub { refaddr(shift) }, # id an object
              fallback => 1;
 
 use Carp qw(confess);
+use Class::Load qw(load_class);
 use Eval::Closure;
 use Scalar::Util qw(blessed refaddr);
 use Sub::Name qw(subname);
@@ -62,7 +63,7 @@ my $_default_message_generator = sub {
         # have to load it late like this, since it uses Moose itself
         my $can_partialdump = try {
             # versions prior to 0.14 had a potential infinite loop bug
-            Class::MOP::load_class('Devel::PartialDump', { -version => 0.14 });
+            load_class('Devel::PartialDump', { -version => 0.14 });
             1;
         };
         if ($can_partialdump) {
@@ -102,7 +103,7 @@ __PACKAGE__->meta->add_attribute('inline_environment' => (
 ));
 
 sub parents {
-    my $self;
+    my $self = shift;
     $self->parent;
 }
 
@@ -124,6 +125,15 @@ sub new {
     my ($first, @rest) = @_;
     my %args = ref $first ? %$first : $first ? ($first, @rest) : ();
     $args{name} = $args{name} ? "$args{name}" : "__ANON__";
+
+    if ( $args{optimized} ) {
+        Moose::Deprecated::deprecated(
+            feature => 'optimized type constraint sub ref',
+            message =>
+                'Providing an optimized subroutine ref for type constraints is deprecated.'
+                . ' Use the inlining feature (inline_as) instead.'
+        );
+    }
 
     if ( exists $args{message}
       && (!ref($args{message}) || ref($args{message}) ne 'CODE') ) {
@@ -436,7 +446,7 @@ Moose::Meta::TypeConstraint - The Moose Type Constraint metaclass
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -570,8 +580,7 @@ Returns true if the type has a parent type.
 
 =item B<< $constraint->parents >>
 
-A synonym for C<parent>. This is useful for polymorphism with types
-that can have more than one parent.
+Returns all of the types parents as an list of type constraint objects.
 
 =item B<< $constraint->constraint >>
 
@@ -634,11 +643,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

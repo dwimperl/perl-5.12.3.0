@@ -3,8 +3,8 @@ package Class::MOP::Attribute;
 BEGIN {
   $Class::MOP::Attribute::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Class::MOP::Attribute::VERSION = '2.0205';
+{
+  $Class::MOP::Attribute::VERSION = '2.0402';
 }
 
 use strict;
@@ -116,26 +116,26 @@ sub initialize_instance_slot {
     # attribute's default value (if it has one)
     if(defined $init_arg and exists $params->{$init_arg}){
         $self->_set_initial_slot_value(
-            $meta_instance, 
+            $meta_instance,
             $instance,
             $params->{$init_arg},
         );
-    } 
+    }
     elsif (exists $self->{'default'}) {
         $self->_set_initial_slot_value(
-            $meta_instance, 
+            $meta_instance,
             $instance,
             $self->default($instance),
         );
-    } 
+    }
     elsif (defined( my $builder = $self->{'builder'})) {
         if ($builder = $instance->can($builder)) {
             $self->_set_initial_slot_value(
-                $meta_instance, 
+                $meta_instance,
                 $instance,
                 $instance->$builder,
             );
-        } 
+        }
         else {
             confess(ref($instance)." does not support builder method '". $self->{'builder'} ."' for attribute '" . $self->name . "'");
         }
@@ -169,8 +169,8 @@ sub _make_initializer_writer_callback {
     };
 }
 
-sub get_read_method  { 
-    my $self   = shift;    
+sub get_read_method  {
+    my $self   = shift;
     my $reader = $self->reader || $self->accessor;
     # normal case ...
     return $reader unless ref $reader;
@@ -179,19 +179,19 @@ sub get_read_method  {
     return $name;
 }
 
-sub get_write_method { 
+sub get_write_method {
     my $self   = shift;
-    my $writer = $self->writer || $self->accessor; 
+    my $writer = $self->writer || $self->accessor;
     # normal case ...
     return $writer unless ref $writer;
     # the HASH ref case
     my ($name) = %$writer;
-    return $name;    
+    return $name;
 }
 
 sub get_read_method_ref {
     my $self = shift;
-    if ((my $reader = $self->get_read_method) && $self->associated_class) {   
+    if ((my $reader = $self->get_read_method) && $self->associated_class) {
         return $self->associated_class->get_method($reader);
     }
     else {
@@ -210,8 +210,8 @@ sub get_read_method_ref {
 }
 
 sub get_write_method_ref {
-    my $self = shift;    
-    if ((my $writer = $self->get_write_method) && $self->associated_class) {         
+    my $self = shift;
+    if ((my $writer = $self->get_write_method) && $self->associated_class) {
         return $self->associated_class->get_method($writer);
     }
     else {
@@ -486,7 +486,7 @@ Class::MOP::Attribute - Attribute Meta Object
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -1020,11 +1020,11 @@ metaclass.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

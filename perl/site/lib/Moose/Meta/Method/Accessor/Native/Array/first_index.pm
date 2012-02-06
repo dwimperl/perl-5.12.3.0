@@ -2,8 +2,8 @@ package Moose::Meta::Method::Accessor::Native::Array::first_index;
 BEGIN {
   $Moose::Meta::Method::Accessor::Native::Array::first_index::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Method::Accessor::Native::Array::first_index::VERSION = '2.0205';
+{
+  $Moose::Meta::Method::Accessor::Native::Array::first_index::VERSION = '2.0402';
 }
 
 use strict;

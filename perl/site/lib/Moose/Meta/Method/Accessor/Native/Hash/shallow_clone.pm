@@ -2,8 +2,8 @@ package Moose::Meta::Method::Accessor::Native::Hash::shallow_clone;
 BEGIN {
   $Moose::Meta::Method::Accessor::Native::Hash::shallow_clone::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Method::Accessor::Native::Hash::shallow_clone::VERSION = '2.0205';
+{
+  $Moose::Meta::Method::Accessor::Native::Hash::shallow_clone::VERSION = '2.0402';
 }
 
 use strict;

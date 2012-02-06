@@ -3,8 +3,8 @@ package Class::MOP;
 BEGIN {
   $Class::MOP::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Class::MOP::VERSION = '2.0205';
+{
+  $Class::MOP::VERSION = '2.0402';
 }
 
 use strict;
@@ -15,6 +15,7 @@ use 5.008;
 use MRO::Compat;
 
 use Carp          'confess';
+use Class::Load   ();
 use Scalar::Util  'weaken', 'isweak', 'reftype', 'blessed';
 use Data::OptList;
 use Try::Tiny;
@@ -72,89 +73,16 @@ XSLoader::load(
     # because I don't yet see a good reason to do so.
 }
 
-sub _class_to_pmfile {
-    my $class = shift;
-
-    my $file = $class . '.pm';
-    $file =~ s{::}{/}g;
-
-    return $file;
+sub load_class {
+    goto &Class::Load::load_class;
 }
 
 sub load_first_existing_class {
-    my $classes = Data::OptList::mkopt(\@_)
-      or return;
-
-    foreach my $class (@{ $classes }) {
-        my $name = $class->[0];
-        unless ( _is_valid_class_name($name) ) {
-            my $display = defined($name) ? $name : 'undef';
-            confess "Invalid class name ($display)";
-        }
-    }
-
-    my $found;
-    my %exceptions;
-
-    for my $class (@{ $classes }) {
-        my ($name, $options) = @{ $class };
-
-        if ($options) {
-            return $name if is_class_loaded($name, $options);
-            if (is_class_loaded($name)) {
-                # we already know it's loaded and too old, but we call
-                # ->VERSION anyway to generate the exception for us
-                $name->VERSION($options->{-version});
-            }
-        }
-        else {
-            return $name if is_class_loaded($name);
-        }
-
-        my $file = _class_to_pmfile($name);
-        return $name if try {
-            local $SIG{__DIE__};
-            require $file;
-            $name->VERSION($options->{-version})
-                if defined $options->{-version};
-            return 1;
-        }
-        catch {
-            unless (/^Can't locate \Q$file\E in \@INC/) {
-                confess "Couldn't load class ($name) because: $_";
-            }
-
-            return;
-        };
-    }
-
-    if ( @{ $classes } > 1 ) {
-        my @list = map { $_->[0] } @{ $classes };
-        confess "Can't locate any of @list in \@INC (\@INC contains: @INC).";
-    } else {
-        confess "Can't locate " . _class_to_pmfile($classes->[0]->[0]) . " in \@INC (\@INC contains: @INC).";
-    }
+    goto &Class::Load::load_first_existing_class;
 }
 
-sub load_class {
-    load_first_existing_class($_[0], ref $_[1] ? $_[1] : ());
-
-    # This is done to avoid breaking code which checked the return value. Said
-    # code is dumb. The return value was _always_ true, since it dies on
-    # failure!
-    return 1;
-}
-
-sub _is_valid_class_name {
-    my $class = shift;
-
-    return 0 if ref($class);
-    return 0 unless defined($class);
-    return 0 unless length($class);
-
-    return 1 if $class =~ /^\w+(?:::\w+)*$/;
-
-    return 0;
+sub is_class_loaded {
+    goto &Class::Load::is_class_loaded;
 }
 
 sub _definition_context {
@@ -802,7 +730,7 @@ Class::MOP - A Meta Object Protocol for Perl 5
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -1003,37 +931,6 @@ Note that these are all called as B<functions, not methods>.
 
 =over 4
 
-=item B<Class::MOP::load_class($class_name, \%options?)>
-
-This will load the specified C<$class_name>, if it is not already
-loaded (as reported by C<is_class_loaded>). This function can be used
-in place of tricks like C<eval "use $module"> or using C<require>
-unconditionally.
-
-If the module cannot be loaded, an exception is thrown.
-
-You can pass a hash reference with options as second argument. The
-only option currently recognized is C<-version>, which will ensure
-that the loaded class has at least the required version.
-
-For historical reasons, this function explicitly returns a true value.
-
-=item B<Class::MOP::is_class_loaded($class_name, \%options?)>
-
-Returns a boolean indicating whether or not C<$class_name> has been
-loaded.
-
-This does a basic check of the symbol table to try and determine as
-best it can if the C<$class_name> is loaded, it is probably correct
-about 99% of the time, but it can be fooled into reporting false
-positives. In particular, loading any of the core L<IO> modules will
-cause most of the rest of the core L<IO> modules to falsely report
-having been loaded, due to the way the base L<IO> module works.
-
-You can pass a hash reference with options as second argument. The
-only option currently recognized is C<-version>, which will ensure
-that the loaded class has at least the required version.
-
 =item B<Class::MOP::get_code_info($code)>
 
 This function returns two values, the name of the package the C<$code>
@@ -1104,6 +1001,10 @@ C<$name> key, and return false otherwise.
 This will remove the metaclass stored in the C<$name> key.
 
 =back
+
+Some utility functions (such as C<Class::MOP::load_class>) that were
+previously defined in C<Class::MOP> regarding loading of classes have been
+extracted to L<Class::Load>. Please see L<Class::Load> for documentation.
 
 =head1 SEE ALSO
 
@@ -1208,11 +1109,11 @@ Thanks to Rob for actually getting the development of this module kick-started.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

@@ -2,14 +2,15 @@ package Moose::Meta::Role::Application::ToClass;
 BEGIN {
   $Moose::Meta::Role::Application::ToClass::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Role::Application::ToClass::VERSION = '2.0205';
+{
+  $Moose::Meta::Role::Application::ToClass::VERSION = '2.0402';
 }
 
 use strict;
 use warnings;
 use metaclass;
 
+use List::MoreUtils 'firstval';
 use Moose::Util  'english_list';
 use Scalar::Util 'weaken', 'blessed';
 
@@ -122,6 +123,12 @@ sub check_required_methods {
             . "' requires the $noun $list "
             . "to be implemented by '"
             . $class->name . q{'};
+
+        if (my $meth = firstval { $class->name->can($_) } @missing) {
+            $error .= ". If you imported functions intending to use them as "
+                    . "methods, you need to explicitly mark them as such, via "
+                    . $class->name . "->meta->add_method($meth => \\\&$meth)";
+        }
     }
 
     $class->throw_error($error);
@@ -239,7 +246,7 @@ Moose::Meta::Role::Application::ToClass - Compose a role into a class
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -275,11 +282,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

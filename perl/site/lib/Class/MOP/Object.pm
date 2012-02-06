@@ -3,8 +3,8 @@ package Class::MOP::Object;
 BEGIN {
   $Class::MOP::Object::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Class::MOP::Object::VERSION = '2.0205';
+{
+  $Class::MOP::Object::VERSION = '2.0402';
 }
 
 use strict;
@@ -15,7 +15,7 @@ use Scalar::Util 'blessed';
 
 # introspection
 
-sub meta { 
+sub meta {
     require Class::MOP::Class;
     Class::MOP::Class->initialize(blessed($_[0]) || $_[0]);
 }
@@ -25,15 +25,15 @@ sub _new {
 }
 
 # RANT:
-# Cmon, how many times have you written 
+# Cmon, how many times have you written
 # the following code while debugging:
-# 
-#  use Data::Dumper; 
+#
+#  use Data::Dumper;
 #  warn Dumper $obj;
 #
-# It can get seriously annoying, so why 
+# It can get seriously annoying, so why
 # not just do this ...
-sub dump { 
+sub dump {
     my $self = shift;
     require Data::Dumper;
     local $Data::Dumper::Maxdepth = shift || 1;
@@ -99,13 +99,19 @@ sub _get_compatible_metaclass_by_subclassing {
 
 1;
 
-__END__
+# ABSTRACT: Base class for metaclasses
+
+
 
 =pod
 
-=head1 NAME 
+=head1 NAME
 
 Class::MOP::Object - Base class for metaclasses
+
+=head1 VERSION
+
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -129,4 +135,19 @@ default maximum depth is 1.
 
 =back
 
+=head1 AUTHOR
+
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
 =cut
+
+
+__END__
+

@@ -12,7 +12,7 @@ Moose::Cookbook::Meta::Recipe7 - Creating a glob reference meta-instance class
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -51,17 +51,17 @@ version 2.0205
 
   sub deinitialize_slot {
       my ( $self, $instance, $slot_name ) = @_;
-      delete *$instance->{$slot_name};;
+      delete *$instance->{$slot_name};
   }
 
   sub is_slot_initialized {
-      my ( $self, $instance, $slot_name, $value ) = @_;
-      exists *$instance->{$slot_name};;
+      my ( $self, $instance, $slot_name ) = @_;
+      exists *$instance->{$slot_name};
   }
 
   sub weaken_slot_value {
       my ( $self, $instance, $slot_name ) = @_;
-      weaken *$instance->{$slot_name};;
+      weaken *$instance->{$slot_name};
   }
 
   sub inline_create_instance {
@@ -134,16 +134,16 @@ need to change this to expect a glob reference instead.
 
   sub get_slot_value {
       my ( $self, $instance, $slot_name ) = @_;
-      *$instance->{$slot_name};;
+      *$instance->{$slot_name};
   }
 
 This level of indirection probably makes our instance class I<slower>
 than the default. However, when attribute access is inlined, this
 lookup will be cached:
 
-  sub inline_create_instance {
-      my ( $self, $class_variable ) = @_;
-      return 'do { my $sym = Symbol::gensym(); bless $sym, ' . $class_variable . ' }';
+  sub inline_slot_access {
+      my ( $self, $instance, $slot_name ) = @_;
+      return '*{' . $instance . '}->{' . $slot_name . '}';
   }
 
 The code snippet that the C<inline_slot_access> method returns will
@@ -258,11 +258,11 @@ for my $x ( 0 .. 1 ) {
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

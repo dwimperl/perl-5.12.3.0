@@ -12,7 +12,7 @@ Moose::Cookbook::Extending::Recipe3 - Providing an alternate base object class
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ version 2.0205
 =head1 DESCRIPTION
 
 A common extension is to provide an alternate base class. One way to
-do that is to make a C<MyApp::base> and add C<S<extends
+do that is to make a C<MyApp::Base> and add C<S<extends
 'MyApp::Base'>> to every class in your application. That's pretty
 tedious. Instead, you can create a Moose-alike module that sets the
 base object class to C<MyApp::Base> for you.
@@ -114,11 +114,11 @@ is( $foo->size(), 2, '$foo->size is 2' );
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

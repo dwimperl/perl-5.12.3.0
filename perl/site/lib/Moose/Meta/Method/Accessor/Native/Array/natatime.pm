@@ -2,8 +2,8 @@ package Moose::Meta::Method::Accessor::Native::Array::natatime;
 BEGIN {
   $Moose::Meta::Method::Accessor::Native::Array::natatime::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Method::Accessor::Native::Array::natatime::VERSION = '2.0205';
+{
+  $Moose::Meta::Method::Accessor::Native::Array::natatime::VERSION = '2.0402';
 }
 
 use strict;

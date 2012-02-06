@@ -2,8 +2,8 @@ package Moose::Meta::Method::Accessor::Native::Counter::dec;
 BEGIN {
   $Moose::Meta::Method::Accessor::Native::Counter::dec::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Method::Accessor::Native::Counter::dec::VERSION = '2.0205';
+{
+  $Moose::Meta::Method::Accessor::Native::Counter::dec::VERSION = '2.0402';
 }
 
 use strict;

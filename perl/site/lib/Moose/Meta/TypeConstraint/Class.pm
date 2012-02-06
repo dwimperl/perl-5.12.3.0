@@ -2,8 +2,8 @@ package Moose::Meta::TypeConstraint::Class;
 BEGIN {
   $Moose::Meta::TypeConstraint::Class::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::TypeConstraint::Class::VERSION = '2.0205';
+{
+  $Moose::Meta::TypeConstraint::Class::VERSION = '2.0402';
 }
 
 use strict;
@@ -69,7 +69,13 @@ sub equals {
 
     my $other = Moose::Util::TypeConstraints::find_type_constraint($type_or_name);
 
-    return unless defined $other;
+    if (!defined($other)) {
+        if (!ref($type_or_name)) {
+            return $self->class eq $type_or_name;
+        }
+        return;
+    }
+
     return unless $other->isa(__PACKAGE__);
 
     return $self->class eq $other->class;
@@ -78,9 +84,7 @@ sub equals {
 sub is_a_type_of {
     my ($self, $type_or_name) = @_;
 
-    my $type = Moose::Util::TypeConstraints::find_type_constraint($type_or_name);
-
-    ($self->equals($type) || $self->is_subtype_of($type_or_name));
+    ($self->equals($type_or_name) || $self->is_subtype_of($type_or_name));
 }
 
 sub is_subtype_of {
@@ -91,7 +95,9 @@ sub is_subtype_of {
     if ( not defined $type ) {
         if ( not ref $type_or_name_or_class ) {
             # it might be a class
-            return 1 if $self->class->isa( $type_or_name_or_class );
+            my $class = $self->class;
+            return 1 if $class ne $type_or_name_or_class
+                     && $class->isa( $type_or_name_or_class );
         }
         return;
     }
@@ -141,7 +147,7 @@ Moose::Meta::TypeConstraint::Class - Class/TypeConstraint parallel hierarchy
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -208,11 +214,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

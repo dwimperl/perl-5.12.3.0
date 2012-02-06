@@ -2,8 +2,8 @@ package Moose::Meta::Role::Application::ToRole;
 BEGIN {
   $Moose::Meta::Role::Application::ToRole::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Role::Application::ToRole::VERSION = '2.0205';
+{
+  $Moose::Meta::Role::Application::ToRole::VERSION = '2.0402';
 }
 
 use strict;
@@ -29,7 +29,7 @@ sub check_role_exclusions {
     foreach my $excluded_role_name ($role1->get_excluded_roles_list) {
         if ( $role2->does_role($excluded_role_name) ) {
             require Moose;
-            Moose->throw_error("The class " . $role2->name . " does the excluded role '$excluded_role_name'");
+            Moose->throw_error("The role " . $role2->name . " does the excluded role '$excluded_role_name'");
         }
         $role2->add_excluded_roles($excluded_role_name);
     }
@@ -198,7 +198,7 @@ Moose::Meta::Role::Application::ToRole - Compose a role into another role
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -234,11 +234,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

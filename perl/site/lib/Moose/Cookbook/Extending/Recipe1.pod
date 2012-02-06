@@ -12,7 +12,7 @@ Moose::Cookbook::Extending::Recipe1 - Moose extension overview
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -52,9 +52,9 @@ metaclass. If you were writing an ORM, this would be a logical
 extension.
 
 Many of the Moose extensions on CPAN work by providing an attribute
-metaclass extension. For example, the L<MooseX::AttributeHelpers>
-distribution provides a new attribute metaclass that lets you delegate
-behavior to a non-object attribute (a hashref or simple number).
+metaclass extension. For example, the L<MooseX::Aliases> module
+provides an attribute metaclass trait that lets you specify aliases
+to install for methods and attribute accessors.
 
 A metaclass extension can be packaged as a subclass or a
 role/trait. If you can, we recommend using traits instead of
@@ -235,7 +235,7 @@ directly; see the L<Moose::Exporter> docs.
   use MooseX::Embiggen::Role::Object;
 
   my ( $import, $unimport, $init_meta ) = Moose::Exporter->build_import_methods(
-      also => ['Moose'] metaclass_roles =>
+      also => ['Moose'], metaclass_roles =>
           ['MooseX::Embiggen::Role::Meta::Class'],
       attribute_metaclass_roles => ['MooseX::Embiggen::Role::Meta::Attribute'],
       constructor_class_roles =>
@@ -312,11 +312,11 @@ L<Moose::Exporter> and L<Moose::Util::MetaRole> as well.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

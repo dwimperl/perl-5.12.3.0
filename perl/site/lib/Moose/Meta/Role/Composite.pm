@@ -2,14 +2,15 @@ package Moose::Meta::Role::Composite;
 BEGIN {
   $Moose::Meta::Role::Composite::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Role::Composite::VERSION = '2.0205';
+{
+  $Moose::Meta::Role::Composite::VERSION = '2.0402';
 }
 
 use strict;
 use warnings;
 use metaclass;
 
+use Class::Load qw(load_class);
 use Scalar::Util 'blessed';
 
 use base 'Moose::Meta::Role';
@@ -73,7 +74,7 @@ sub new {
     $class->_new(\%params);
 }
 
-# This is largely a cope of what's in Moose::Meta::Role (itself
+# This is largely a copy of what's in Moose::Meta::Role (itself
 # largely a copy of Class::MOP::Class). However, we can't actually
 # call add_package_symbol, because there's no package to which which
 # add the symbol.
@@ -126,7 +127,7 @@ sub get_method {
 
 sub apply_params {
     my ($self, $role_params) = @_;
-    Class::MOP::load_class($self->application_role_summation_class);
+    load_class($self->application_role_summation_class);
 
     $self->application_role_summation_class->new(
         role_params => $role_params,
@@ -165,7 +166,7 @@ Moose::Meta::Role::Composite - An object to represent the set of roles
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -220,11 +221,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

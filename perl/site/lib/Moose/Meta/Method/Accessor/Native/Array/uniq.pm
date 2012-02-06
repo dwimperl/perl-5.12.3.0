@@ -2,8 +2,8 @@ package Moose::Meta::Method::Accessor::Native::Array::uniq;
 BEGIN {
   $Moose::Meta::Method::Accessor::Native::Array::uniq::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Method::Accessor::Native::Array::uniq::VERSION = '2.0205';
+{
+  $Moose::Meta::Method::Accessor::Native::Array::uniq::VERSION = '2.0402';
 }
 
 use strict;

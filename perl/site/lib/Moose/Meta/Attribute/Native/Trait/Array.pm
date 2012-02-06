@@ -3,8 +3,8 @@ package Moose::Meta::Attribute::Native::Trait::Array;
 BEGIN {
   $Moose::Meta::Attribute::Native::Trait::Array::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Attribute::Native::Trait::Array::VERSION = '2.0205';
+{
+  $Moose::Meta::Attribute::Native::Trait::Array::VERSION = '2.0402';
 }
 use Moose::Role;
 
@@ -28,7 +28,7 @@ Moose::Meta::Attribute::Native::Trait::Array - Helper trait for ArrayRef attribu
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -314,7 +314,7 @@ in the array.
 
 This method accepts one or two arguments.
 
-=item B<shallow_clone>
+=item * B<shallow_clone>
 
 This method returns a shallow clone of the array reference.  The return value
 is a reference to a new array with the same elements.  It is I<shallow>
@@ -329,11 +329,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

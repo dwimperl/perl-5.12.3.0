@@ -12,7 +12,7 @@ Moose::Cookbook::Extending::Recipe4 - Acting like Moose.pm and providing sugar M
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -56,8 +56,8 @@ replaced with C<no MyApp::Mooseish>.
 
 The C<with_meta> parameter specifies a list of functions that should
 be wrapped before exporting. The wrapper simply ensures that the
-importing package name is the first argument to the function, so we
-can do C<S<my $caller = shift;>>.
+importing package's appropriate metaclass object is the first argument
+to the function, so we can do C<S<my $meta = shift;>>.
 
 See the L<Moose::Exporter> docs for more details on its API.
 
@@ -112,11 +112,11 @@ ok( MyApp::User->can('username'),
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

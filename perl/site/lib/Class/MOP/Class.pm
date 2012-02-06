@@ -3,8 +3,8 @@ package Class::MOP::Class;
 BEGIN {
   $Class::MOP::Class::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Class::MOP::Class::VERSION = '2.0205';
+{
+  $Class::MOP::Class::VERSION = '2.0402';
 }
 
 use strict;
@@ -17,6 +17,7 @@ use Class::MOP::Method::Constructor;
 use Class::MOP::MiniTrait;
 
 use Carp         'confess';
+use Class::Load  'is_class_loaded', 'load_class';
 use Scalar::Util 'blessed', 'reftype', 'weaken';
 use Sub::Name    'subname';
 use Try::Tiny;
@@ -32,7 +33,7 @@ sub initialize {
     my $class = shift;
 
     my $package_name;
-    
+
     if ( @_ % 2 ) {
         $package_name = shift;
     } else {
@@ -107,7 +108,7 @@ sub _construct_class_instance {
     }
 
     # and check the metaclass compatibility
-    $meta->_check_metaclass_compatibility();  
+    $meta->_check_metaclass_compatibility();
 
     Class::MOP::store_metaclass_by_name($package_name, $meta);
 
@@ -721,7 +722,7 @@ sub get_meta_instance {
 
 sub _create_meta_instance {
     my $self = shift;
-    
+
     my $instance = $self->instance_metaclass->new(
         associated_metaclass => $self,
         attributes => [ $self->get_all_attributes() ],
@@ -1002,18 +1003,18 @@ sub class_precedence_list {
     my $self = shift;
     my $name = $self->name;
 
-    unless (Class::MOP::IS_RUNNING_ON_5_10()) { 
+    unless (Class::MOP::IS_RUNNING_ON_5_10()) {
         # NOTE:
         # We need to check for circular inheritance here
-        # if we are are not on 5.10, cause 5.8 detects it 
-        # late. This will do nothing if all is well, and 
+        # if we are are not on 5.10, cause 5.8 detects it
+        # late. This will do nothing if all is well, and
         # blow up otherwise. Yes, it's an ugly hack, better
-        # suggestions are welcome.        
+        # suggestions are welcome.
         # - SL
-        ($name || return)->isa('This is a test for circular inheritance') 
+        ($name || return)->isa('This is a test for circular inheritance')
     }
 
-    # if our mro is c3, we can 
+    # if our mro is c3, we can
     # just grab the linear_isa
     if (mro::get_mro($name) eq 'c3') {
         return @{ mro::get_linear_isa($name) }
@@ -1021,7 +1022,7 @@ sub class_precedence_list {
     else {
         # NOTE:
         # we can't grab the linear_isa for dfs
-        # since it has all the duplicates 
+        # since it has all the duplicates
         # already removed.
         return (
             $name,
@@ -1030,6 +1031,10 @@ sub class_precedence_list {
             } $self->superclasses()
         );
     }
+}
+
+sub _method_lookup_order {
+    return (shift->linearized_isa, 'UNIVERSAL');
 }
 
 ## Methods
@@ -1114,7 +1119,7 @@ sub find_method_by_name {
     my ($self, $method_name) = @_;
     (defined $method_name && length $method_name)
         || confess "You must define a method name to find";
-    foreach my $class ($self->linearized_isa) {
+    foreach my $class ($self->_method_lookup_order) {
         my $method = Class::MOP::Class->initialize($class)->get_method($method_name);
         return $method if defined $method;
     }
@@ -1125,7 +1130,7 @@ sub get_all_methods {
     my $self = shift;
 
     my %methods;
-    for my $class ( reverse $self->linearized_isa ) {
+    for my $class ( reverse $self->_method_lookup_order ) {
         my $meta = Class::MOP::Class->initialize($class);
 
         $methods{ $_->name } = $_ for $meta->_get_local_methods;
@@ -1136,8 +1141,7 @@ sub get_all_methods {
 
 sub get_all_method_names {
     my $self = shift;
-    my %uniq;
-    return grep { !$uniq{$_}++ } map { Class::MOP::Class->initialize($_)->get_method_list } $self->linearized_isa;
+    map { $_->name } $self->get_all_methods;
 }
 
 sub find_all_methods_by_name {
@@ -1145,7 +1149,7 @@ sub find_all_methods_by_name {
     (defined $method_name && length $method_name)
         || confess "You must define a method name to find";
     my @methods;
-    foreach my $class ($self->linearized_isa) {
+    foreach my $class ($self->_method_lookup_order) {
         # fetch the meta-class ...
         my $meta = Class::MOP::Class->initialize($class);
         push @methods => {
@@ -1161,7 +1165,7 @@ sub find_next_method_by_name {
     my ($self, $method_name) = @_;
     (defined $method_name && length $method_name)
         || confess "You must define a method name to find";
-    my @cpl = $self->linearized_isa;
+    my @cpl = ($self->_method_lookup_order);
     shift @cpl; # discard ourselves
     foreach my $class (@cpl) {
         my $method = Class::MOP::Class->initialize($class)->get_method($method_name);
@@ -1276,7 +1280,7 @@ sub _immutable_options {
 sub make_immutable {
     my ( $self, @args ) = @_;
 
-    return unless $self->is_mutable;
+    return $self unless $self->is_mutable;
 
     my ($file, $line) = (caller)[1..2];
 
@@ -1339,7 +1343,7 @@ sub _immutable_metaclass {
     }
 
     return $class_name
-        if Class::MOP::is_class_loaded($class_name);
+        if is_class_loaded($class_name);
 
     # If the metaclass is a subclass of CMOP::Class which has had
     # metaclass roles applied (via Moose), then we want to make sure
@@ -1429,7 +1433,7 @@ sub _inline_constructor {
 
     my $constructor_class = $args{constructor_class};
 
-    Class::MOP::load_class($constructor_class);
+    load_class($constructor_class);
 
     my $constructor = $constructor_class->new(
         options      => \%args,
@@ -1466,7 +1470,7 @@ sub _inline_destructor {
 
     my $destructor_class = $args{destructor_class};
 
-    Class::MOP::load_class($destructor_class);
+    load_class($destructor_class);
 
     return unless $destructor_class->is_needed($self);
 
@@ -1502,7 +1506,7 @@ Class::MOP::Class - Class Meta Object
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -1987,7 +1991,8 @@ of the inlining features than Class::MOP itself does.
 =item B<< $metaclass->make_immutable(%options) >>
 
 This method will create an immutable transformer and use it to make
-the class and its metaclass object immutable.
+the class and its metaclass object immutable, and returns true
+(you should not rely on the details of this value apart from its truth).
 
 This method accepts the following options:
 
@@ -2177,11 +2182,11 @@ metaclass.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

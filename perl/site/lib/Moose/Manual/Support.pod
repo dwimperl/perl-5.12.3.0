@@ -1,9 +1,18 @@
+package Moose::Manual::Support
+
+# ABSTRACT: Policies regarding support, releases, and compatibility.
+
+
+
 =pod
 
 =head1 NAME
 
-Moose::Manual::Support - Policies regarding support, releases, and
-compatibility.
+Moose::Manual::Support - Policies regarding support, releases, and compatibility.
+
+=head1 VERSION
+
+version 2.0402
 
 =head1 SUPPORT POLICY
 
@@ -137,4 +146,19 @@ dependency instead.
 Moose has an open contribution policy. Anybody is welcome to submit a
 patch. Please see L<Moose::Manual::Contributing> for more details.
 
+=head1 AUTHOR
+
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
 =cut
+
+
+__END__
+

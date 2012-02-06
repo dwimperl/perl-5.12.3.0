@@ -2,8 +2,8 @@ package Moose::Meta::Method::Accessor::Native::Bool::toggle;
 BEGIN {
   $Moose::Meta::Method::Accessor::Native::Bool::toggle::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Method::Accessor::Native::Bool::toggle::VERSION = '2.0205';
+{
+  $Moose::Meta::Method::Accessor::Native::Bool::toggle::VERSION = '2.0402';
 }
 
 use strict;

@@ -2,8 +2,8 @@ package Moose;
 BEGIN {
   $Moose::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::VERSION = '2.0205';
+{
+  $Moose::VERSION = '2.0402';
 }
 use strict;
 use warnings;
@@ -12,6 +12,8 @@ use 5.008;
 
 use Scalar::Util 'blessed';
 use Carp         'confess';
+use Class::Load  'is_class_loaded';
+
 
 use Moose::Deprecated;
 use Moose::Exporter;
@@ -148,7 +150,7 @@ sub init_meta {
     my $meta_name  = exists $args{meta_name} ? $args{meta_name} : 'meta';
 
     Moose->throw_error("The Metaclass $metaclass must be loaded. (Perhaps you forgot to 'use $metaclass'?)")
-        unless Class::MOP::is_class_loaded($metaclass);
+        unless is_class_loaded($metaclass);
 
     Moose->throw_error("The Metaclass $metaclass must be a subclass of Moose::Meta::Class.")
         unless $metaclass->isa('Moose::Meta::Class');
@@ -286,7 +288,7 @@ Moose - A postmodern object system for Perl 5
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -981,9 +983,19 @@ early ideas/feature-requests/encouragement/bug-finding.
 
 =item L<http://www.iinteractive.com/moose>
 
-This is the official web home of Moose, it contains links to our public git repository
-as well as links to a number of talks and articles on Moose and Moose related
-technologies.
+This is the official web home of Moose. It contains links to our public git
+repository, as well as links to a number of talks and articles on Moose and
+Moose related technologies.
+
+=item the L<Moose manual|Moose::Manual>
+
+This is an introduction to Moose which covers most of the basics.
+
+=item Modern Perl, by chromatic
+
+This is an introduction to modern Perl programming, which includes a section on
+Moose. It is available in print and as a free download from
+L<http://onyxneon.com/books/modern_perl/>.
 
 =item The Moose is flying, a tutorial by Randal Schwartz
 
@@ -1070,13 +1082,58 @@ Dave (autarch) Rolsky E<lt>autarch@urth.orgE<gt>
 
 =head1 CONTRIBUTORS
 
+Moose is a community project, and as such, involves the work of many, many
+members of the community beyond just the members in the cabal. In particular:
+
+Dave (autarch) Rolsky wrote most of the documentation in L<Moose::Manual>.
+
+John (jgoulah) Goulah wrote L<Moose::Cookbook::Snack::Keywords>.
+
+Jess (castaway) Robinson wrote L<Moose::Cookbook::Snack::Types>.
+
+Aran (bluefeet) Clary Deltac wrote L<Moose::Cookbook::Basics::Recipe9>.
+
+Anders (Debolaz) Nor Berle contributed L<Test::Moose> and L<Moose::Util>.
+
+Also, the code in L<Moose::Meta::Attribute::Native> is based on code from the
+L<MooseX::AttributeHelpers> distribution, which had contributions from:
+
+Chris (perigrin) Prather
+
+Cory (gphat) Watson
+
+Evan Carroll
+
+Florian (rafl) Ragwitz
+
+Jason May
+
+Jay Hannah
+
+Jesse (doy) Luehrs
+
+Paul (frodwith) Driver
+
+Robert (rlb3) Boone
+
+Robert Buels
+
+Robert (phaylon) Sedlacek
+
+Shawn (Sartak) Moore
+
+Stevan Little
+
+Tom (dec) Lanyon
+
+Yuval Kogman
+
+Finally, these people also contributed various tests, bug fixes,
+documentation, and features to the Moose codebase:
+
 Aankhen
 
 Adam (Alias) Kennedy
-
-Anders (Debolaz) Nor Berle
-
-Chris (perigrin) Prather
 
 Christian (chansen) Hansen
 
@@ -1088,15 +1145,11 @@ Eric (ewilhelm) Wilhelm
 
 Evan Carroll
 
-Florian (rafl) Ragwitz
-
 Guillermo (groditi) Roditi
 
 Jason May
 
 Jay Hannah
-
-Jess (castaway) Robinson
 
 Jonathan (jrockway) Rockway
 
@@ -1118,8 +1171,6 @@ Sam (mugwump) Vilain
 
 Scott (konobi) McWhirter
 
-Shawn (Sartak) Moore
-
 Shlomi (rindolf) Fish
 
 Tom (dec) Lanyon
@@ -1130,11 +1181,11 @@ Wallace (wreis) Reis
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

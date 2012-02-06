@@ -3,15 +3,15 @@ package Moose::Meta::Attribute;
 BEGIN {
   $Moose::Meta::Attribute::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Attribute::VERSION = '2.0205';
+{
+  $Moose::Meta::Attribute::VERSION = '2.0402';
 }
 
 use strict;
 use warnings;
 
-use Class::MOP ();
 use B ();
+use Class::Load qw(is_class_loaded load_class);
 use Scalar::Util 'blessed', 'weaken';
 use List::MoreUtils 'any';
 use Try::Tiny;
@@ -86,7 +86,7 @@ sub _inline_throw_error {
 sub new {
     my ($class, $name, %options) = @_;
     $class->_process_options($name, \%options) unless $options{__hack_no_process_options}; # used from clone()... YECHKKK FIXME ICKY YUCK GROSS
-    
+
     delete $options{__hack_no_process_options};
 
     my %attrs =
@@ -223,7 +223,7 @@ sub clone_and_inherit_options {
             $type_constraint = $options{isa};
         }
         else {
-            $type_constraint = Moose::Util::TypeConstraints::find_or_create_isa_type_constraint($options{isa});
+            $type_constraint = Moose::Util::TypeConstraints::find_or_create_isa_type_constraint($options{isa}, { package_defined_in => $options{definition_context}->{package} });
             (defined $type_constraint)
                 || $self->throw_error("Could not find the type constraint '" . $options{isa} . "'", data => $options{isa});
         }
@@ -237,7 +237,7 @@ sub clone_and_inherit_options {
             $type_constraint = $options{does};
         }
         else {
-            $type_constraint = Moose::Util::TypeConstraints::find_or_create_does_type_constraint($options{does});
+            $type_constraint = Moose::Util::TypeConstraints::find_or_create_does_type_constraint($options{does}, { package_defined_in => $options{definition_context}->{package} });
             (defined $type_constraint)
                 || $self->throw_error("Could not find the type constraint '" . $options{does} . "'", data => $options{does});
         }
@@ -368,7 +368,9 @@ sub _process_isa_option {
     else {
         $options->{type_constraint}
             = Moose::Util::TypeConstraints::find_or_create_isa_type_constraint(
-            $options->{isa} );
+            $options->{isa},
+            { package_defined_in => $options->{definition_context}->{package} }
+        );
     }
 }
 
@@ -385,7 +387,9 @@ sub _process_does_option {
     else {
         $options->{type_constraint}
             = Moose::Util::TypeConstraints::find_or_create_does_type_constraint(
-            $options->{does} );
+            $options->{does},
+            { package_defined_in => $options->{definition_context}->{package} }
+        );
     }
 }
 
@@ -751,7 +755,7 @@ sub _inline_weaken_value {
 
     my $mi = $self->associated_class->get_meta_instance;
     return (
-        $mi->inline_weaken_slot_value($instance, $self->name, $value),
+        $mi->inline_weaken_slot_value($instance, $self->name),
             'if ref ' . $value . ';',
     );
 }
@@ -827,6 +831,10 @@ sub get_value {
             $value = $self->_coerce_and_verify( $value, $instance );
 
             $self->set_initial_value($instance, $value);
+
+            if ( ref $value && $self->is_weak_ref ) {
+                $self->_weaken_value($instance);
+            }
         }
     }
 
@@ -908,6 +916,7 @@ sub _inline_init_from_default {
                $self->_inline_check_constraint($default, $tc, $message, $for_lazy))
             : (),
         $self->_inline_init_slot($instance, $default),
+        $self->_inline_weaken_value($instance, $default),
     );
 }
 
@@ -1043,6 +1052,7 @@ sub _process_accessors {
 
     if (
            $method
+        && !$method->is_stub
         && !$method->isa('Class::MOP::Method::Accessor')
         && (  !$self->definition_context
             || $method->package_name eq $self->definition_context->{package} )
@@ -1089,8 +1099,12 @@ sub install_delegation {
         my $class_name = $associated_class->name;
         my $name = "${class_name}::${handle}";
 
-            (!$associated_class->has_method($handle))
-                || $self->throw_error("You cannot overwrite a locally defined method ($handle) with a delegation", method_name => $handle);
+        if ( my $method = $associated_class->get_method($handle) ) {
+            $self->throw_error(
+                "You cannot overwrite a locally defined method ($handle) with a delegation",
+                method_name => $handle
+            ) unless $method->is_stub;
+        }
 
         # NOTE:
         # handles is not allowed to delegate
@@ -1153,7 +1167,7 @@ sub _canonicalize_handles {
         }
     }
 
-    Class::MOP::load_class($handles);
+    load_class($handles);
     my $role_meta = Class::MOP::class_of($handles);
 
     (blessed $role_meta && $role_meta->isa('Moose::Meta::Role'))
@@ -1186,7 +1200,7 @@ sub _get_delegate_method_list {
 sub _find_delegate_metaclass {
     my $self = shift;
     if (my $class = $self->_isa_metadata) {
-        unless ( Class::MOP::is_class_loaded($class) ) {
+        unless ( is_class_loaded($class) ) {
             $self->throw_error(
                 sprintf(
                     'The %s attribute is trying to delegate to a class which has not been loaded - %s',
@@ -1200,7 +1214,7 @@ sub _find_delegate_metaclass {
         return Class::MOP::Class->initialize($class);
     }
     elsif (my $role = $self->_does_metadata) {
-        unless ( Class::MOP::is_class_loaded($class) ) {
+        unless ( is_class_loaded($class) ) {
             $self->throw_error(
                 sprintf(
                     'The %s attribute is trying to delegate to a role which has not been loaded - %s',
@@ -1269,8 +1283,8 @@ package Moose::Meta::Attribute::Custom::Moose;
 BEGIN {
   $Moose::Meta::Attribute::Custom::Moose::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::Attribute::Custom::Moose::VERSION = '2.0205';
+{
+  $Moose::Meta::Attribute::Custom::Moose::VERSION = '2.0402';
 }
 sub register_implementation { 'Moose::Meta::Attribute' }
 
@@ -1288,7 +1302,7 @@ Moose::Meta::Attribute - The Moose attribute metaclass
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -1669,11 +1683,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

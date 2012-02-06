@@ -3,8 +3,8 @@ package Class::MOP::Package;
 BEGIN {
   $Class::MOP::Package::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Class::MOP::Package::VERSION = '2.0205';
+{
+  $Class::MOP::Package::VERSION = '2.0402';
 }
 
 use strict;
@@ -28,8 +28,7 @@ sub initialize {
     my $package_name = delete $options{package};
 
 
-    # we hand-construct the class 
-    # until we can bootstrap it
+    # we hand-construct the class until we can bootstrap it
     if ( my $meta = Class::MOP::get_metaclass_by_name($package_name) ) {
         return $meta;
     } else {
@@ -147,10 +146,18 @@ sub create {
         # class when fixing metaclass incompatibility. In that case,
         # we don't want to clean out the namespace now. We can detect
         # that because Moose will explicitly update the singleton
-        # cache in Class::MOP.
-        no warnings 'uninitialized';
+        # cache in Class::MOP using store_metaclass_by_name, which
+        # means that the new metaclass will already exist in the cache
+        # by this point.
+        # The other options here are that $current_meta can be undef if
+        # remove_metaclass_by_name is called explicitly (since the hash
+        # entry is removed first, and then this destructor is called),
+        # or that $current_meta can be the same as $self, which happens
+        # when the metaclass goes out of scope (since the weak reference
+        # in the metaclass cache won't be freed until after this
+        # destructor runs).
         my $current_meta = Class::MOP::get_metaclass_by_name($name);
-        return if $current_meta ne $self;
+        return if defined($current_meta) && $current_meta ne $self;
 
         my ($first_fragments, $last_fragment) = ($name =~ /^(.*)::(.*)$/);
 
@@ -193,7 +200,7 @@ sub _new {
 # Attributes
 
 # NOTE:
-# all these attribute readers will be bootstrapped 
+# all these attribute readers will be bootstrapped
 # away in the Class::MOP bootstrap section
 
 sub _package_stash {
@@ -263,7 +270,7 @@ Class::MOP::Package - Package Meta Object
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 DESCRIPTION
 
@@ -384,11 +391,11 @@ This will return a L<Class::MOP::Class> instance for this class.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

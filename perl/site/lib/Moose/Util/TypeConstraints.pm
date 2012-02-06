@@ -3,8 +3,8 @@ package Moose::Util::TypeConstraints;
 BEGIN {
   $Moose::Util::TypeConstraints::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Util::TypeConstraints::VERSION = '2.0205';
+{
+  $Moose::Util::TypeConstraints::VERSION = '2.0402';
 }
 
 use Carp ();
@@ -161,15 +161,30 @@ sub create_class_type_constraint {
 #find_type_constraint("ClassName")->check($class)
 #    || __PACKAGE__->_throw_error("Can't create a class type constraint because '$class' is not a class name");
 
+    my $pkg_defined_in = $options->{package_defined_in} || scalar( caller(1) );
+
+    if (my $type = $REGISTRY->get_type_constraint($class)) {
+        if (!($type->isa('Moose::Meta::TypeConstraint::Class') && $type->class eq $class)) {
+            _confess(
+                "The type constraint '$class' has already been created in "
+              . $type->_package_defined_in
+              . " and cannot be created again in "
+              . $pkg_defined_in )
+        }
+    }
+
     my %options = (
-        class => $class,
-        name  => $class,
+        class              => $class,
+        name               => $class,
+        package_defined_in => $pkg_defined_in,
         %{ $options || {} },
     );
 
     $options{name} ||= "__ANON__";
 
-    Moose::Meta::TypeConstraint::Class->new(%options);
+    my $tc = Moose::Meta::TypeConstraint::Class->new(%options);
+    $REGISTRY->add_type_constraint($tc);
+    return $tc;
 }
 
 sub create_role_type_constraint {
@@ -179,15 +194,30 @@ sub create_role_type_constraint {
 #find_type_constraint("ClassName")->check($class)
 #    || __PACKAGE__->_throw_error("Can't create a class type constraint because '$class' is not a class name");
 
+    my $pkg_defined_in = $options->{package_defined_in} || scalar( caller(1) );
+
+    if (my $type = $REGISTRY->get_type_constraint($role)) {
+        if (!($type->isa('Moose::Meta::TypeConstraint::Role') && $type->role eq $role)) {
+            _confess(
+                "The type constraint '$role' has already been created in "
+              . $type->_package_defined_in
+              . " and cannot be created again in "
+              . $pkg_defined_in )
+        }
+    }
+
     my %options = (
-        role => $role,
-        name => $role,
+        role               => $role,
+        name               => $role,
+        package_defined_in => $pkg_defined_in,
         %{ $options || {} },
     );
 
     $options{name} ||= "__ANON__";
 
-    Moose::Meta::TypeConstraint::Role->new(%options);
+    my $tc = Moose::Meta::TypeConstraint::Role->new(%options);
+    $REGISTRY->add_type_constraint($tc);
+    return $tc;
 }
 
 sub find_or_create_type_constraint {
@@ -220,15 +250,15 @@ sub find_or_create_type_constraint {
 }
 
 sub find_or_create_isa_type_constraint {
-    my $type_constraint_name = shift;
+    my ($type_constraint_name, $options) = @_;
     find_or_parse_type_constraint($type_constraint_name)
-        || create_class_type_constraint($type_constraint_name);
+        || create_class_type_constraint($type_constraint_name, $options);
 }
 
 sub find_or_create_does_type_constraint {
-    my $type_constraint_name = shift;
+    my ($type_constraint_name, $options) = @_;
     find_or_parse_type_constraint($type_constraint_name)
-        || create_role_type_constraint($type_constraint_name);
+        || create_role_type_constraint($type_constraint_name, $options);
 }
 
 sub find_or_parse_type_constraint {
@@ -329,21 +359,11 @@ sub subtype {
 }
 
 sub class_type {
-    register_type_constraint(
-        create_class_type_constraint(
-            $_[0],
-            ( defined( $_[1] ) ? $_[1] : () ),
-        )
-    );
+    create_class_type_constraint(@_);
 }
 
 sub role_type ($;$) {
-    register_type_constraint(
-        create_role_type_constraint(
-            $_[0],
-            ( defined( $_[1] ) ? $_[1] : () ),
-        )
-    );
+    create_role_type_constraint(@_);
 }
 
 sub maybe_type {
@@ -745,7 +765,7 @@ Moose::Util::TypeConstraints - Type constraint system for Moose
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -1110,15 +1130,9 @@ The subroutine should return a code string suitable for inlining. You can
 assume that the check will be wrapped in parentheses when it is inlined.
 
 The inlined code should include any checks that your type's parent types
-do. For example, the C<Value> type's inlining sub looks like this:
-
-    sub {
-        'defined(' . $_[1] . ')'
-        . ' && !ref(' . $_[1] . ')'
-    }
-
-Note that it checks if the variable is defined, since it is a subtype of
-the C<Defined> type.  However, to avoid repeating code, this can be optimized as:
+do. If your parent type constraint defines its own inlining, you can simply use
+that to avoid repeating code. For example, here is the inlining code for the
+C<Value> type, which is a subtype of C<Defined>:
 
     sub {
         $_[0]->parent()->_inline_check($_[1])
@@ -1398,11 +1412,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

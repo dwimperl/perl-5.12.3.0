@@ -2,13 +2,14 @@ package Moose::Util;
 BEGIN {
   $Moose::Util::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Util::VERSION = '2.0205';
+{
+  $Moose::Util::VERSION = '2.0402';
 }
 
 use strict;
 use warnings;
 
+use Class::Load qw(load_class load_first_existing_class);
 use Data::OptList;
 use Params::Util qw( _STRING );
 use Sub::Exporter;
@@ -128,7 +129,7 @@ sub _apply_all_roles {
             $meta = $role->[0];
         }
         else {
-            Class::MOP::load_class( $role->[0] , $role->[1] );
+            load_class( $role->[0] , $role->[1] );
             $meta = find_meta( $role->[0] );
         }
 
@@ -148,7 +149,7 @@ sub _apply_all_roles {
 
     return unless @role_metas;
 
-    Class::MOP::load_class($applicant)
+    load_class($applicant)
         unless blessed($applicant)
             || Class::MOP::class_of($applicant);
 
@@ -221,7 +222,7 @@ sub _build_alias_package_name {
             $type, $metaclass_name, $options{trait}
         );
 
-        my $loaded_class = Class::MOP::load_first_existing_class(
+        my $loaded_class = load_first_existing_class(
             $possible_full_name,
             $metaclass_name
         );
@@ -487,7 +488,7 @@ Moose::Util - Utilities for working with Moose classes
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -617,11 +618,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

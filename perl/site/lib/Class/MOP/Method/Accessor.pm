@@ -3,8 +3,8 @@ package Class::MOP::Method::Accessor;
 BEGIN {
   $Class::MOP::Method::Accessor::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Class::MOP::Method::Accessor::VERSION = '2.0205';
+{
+  $Class::MOP::Method::Accessor::VERSION = '2.0402';
 }
 
 use strict;
@@ -251,7 +251,7 @@ Class::MOP::Method::Accessor - Method Meta Object for accessors
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 SYNOPSIS
 
@@ -332,11 +332,11 @@ constructed.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

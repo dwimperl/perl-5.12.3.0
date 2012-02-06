@@ -2,8 +2,8 @@ package Moose::Meta::TypeConstraint::Parameterized;
 BEGIN {
   $Moose::Meta::TypeConstraint::Parameterized::AUTHORITY = 'cpan:STEVAN';
 }
-BEGIN {
-  $Moose::Meta::TypeConstraint::Parameterized::VERSION = '2.0205';
+{
+  $Moose::Meta::TypeConstraint::Parameterized::VERSION = '2.0402';
 }
 
 use strict;
@@ -120,7 +120,7 @@ Moose::Meta::TypeConstraint::Parameterized - Type constraints with a bound param
 
 =head1 VERSION
 
-version 2.0205
+version 2.0402
 
 =head1 METHODS
 
@@ -138,11 +138,11 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =head1 AUTHOR
 
-Stevan Little <stevan@iinteractive.com>
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc..
+This software is copyright (c) 2012 by Infinity Interactive, Inc..
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
