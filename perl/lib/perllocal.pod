@@ -7984,3 +7984,25 @@ C<EXE_FILES: script/dbicadmin>
 
 =back
 
+=head2 Mon Feb  6 16:05:36 2012: C<Module> L<App::cpanminus|App::cpanminus>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.5007>
+
+=item *
+
+C<EXE_FILES: bin/cpanm>
+
+=back
+

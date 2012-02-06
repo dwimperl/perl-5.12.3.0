@@ -1,5 +1,5 @@
 package App::cpanminus;
-our $VERSION = "1.5003";
+our $VERSION = "1.5007";
 
 =head1 NAME
 
@@ -115,7 +115,7 @@ writing code.
 =head2 Zero-conf? How does this module get/parse/update the CPAN index?
 
 It queries the CPAN Meta DB site running on Google AppEngine at
-L<http://cpanmetadb.appspot.com/>. The site is updated every hour to reflect
+L<http://cpanmetadb.plackperl.org/>. The site is updated every hour to reflect
 the latest changes from fast syncing mirrors. The script then also falls back
 to scrape the site L<http://search.cpan.org/>.
 

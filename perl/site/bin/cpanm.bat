@@ -31,7 +31,7 @@ my %fatpacked;
 
 $fatpacked{"App/cpanminus.pm"} = <<'APP_CPANMINUS';
   package App::cpanminus;
-  our $VERSION = "1.5003";
+  our $VERSION = "1.5007";
   
   =head1 NAME
   
@@ -147,7 +147,7 @@ $fatpacked{"App/cpanminus.pm"} = <<'APP_CPANMINUS';
   =head2 Zero-conf? How does this module get/parse/update the CPAN index?
   
   It queries the CPAN Meta DB site running on Google AppEngine at
-  L<http://cpanmetadb.appspot.com/>. The site is updated every hour to reflect
+  L<http://cpanmetadb.plackperl.org/>. The site is updated every hour to reflect
   the latest changes from fast syncing mirrors. The script then also falls back
   to scrape the site L<http://search.cpan.org/>.
   
@@ -339,7 +339,7 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
   use constant WIN32 => $^O eq 'MSWin32';
   use constant SUNOS => $^O eq 'solaris';
   
-  our $VERSION = "1.5003";
+  our $VERSION = "1.5007";
   
   my $quote = WIN32 ? q/"/ : q/'/;
   
@@ -481,6 +481,8 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
   
       $self->configure_mirrors;
   
+      my $cwd = Cwd::cwd;
+  
       my @fail;
       for my $module (@{$self->{argv}}) {
           if ($module =~ s/\.pm$//i) {
@@ -498,6 +500,7 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
               }
           }
   
+          $self->chdir($cwd);
           $self->install_module($module, 0, $version)
               or push @fail, $module;
       }
@@ -652,7 +655,7 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
           }
   
           $self->chat("Searching $module on cpanmetadb ...\n");
-          my $uri  = "http://cpanmetadb.appspot.com/v1.0/package/$module";
+          my $uri  = "http://cpanmetadb.plackperl.org/v1.0/package/$module";
           my $yaml = $self->get($uri);
           my $meta = $self->parse_meta_string($yaml);
           if ($meta && $meta->{distfile}) {
@@ -1089,9 +1092,10 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
   
       return 1 if $self->run_timeout($cmd, $self->{build_timeout});
       while (1) {
-          my $ans = lc $self->prompt("Building $distname failed.\nYou can s)kip, r)etry or l)ook ?", "s");
+          my $ans = lc $self->prompt("Building $distname failed.\nYou can s)kip, r)etry, e)xamine build log, or l)ook ?", "s");
           return                               if $ans eq 's';
           return $self->build($cmd, $distname) if $ans eq 'r';
+          $self->show_build_log                if $ans eq 'e';
           $self->look                          if $ans eq 'l';
       }
   }
@@ -1100,9 +1104,8 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
       my($self, $cmd, $distname) = @_;
       return 1 if $self->{notest};
   
-      # http://www.nntp.perl.org/group/perl.perl5.porters/2009/10/msg152656.html
-      local $ENV{AUTOMATED_TESTING} = 1
-          unless $self->env('NO_AUTOMATED_TESTING');
+      # https://rt.cpan.org/Ticket/Display.html?id=48965#txn-1013385
+      local $ENV{PERL_MM_USE_DEFAULT} = 1;
   
       return 1 if $self->run_timeout($cmd, $self->{test_timeout});
       if ($self->{force}) {
@@ -1111,10 +1114,11 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
       } else {
           $self->diag_fail;
           while (1) {
-              my $ans = lc $self->prompt("Testing $distname failed.\nYou can s)kip, r)etry, f)orce install or l)ook ?", "s");
+              my $ans = lc $self->prompt("Testing $distname failed.\nYou can s)kip, r)etry, f)orce install, e)xamine build log, or l)ook ?", "s");
               return                              if $ans eq 's';
               return $self->test($cmd, $distname) if $ans eq 'r';
               return 1                            if $ans eq 'f';
+              $self->show_build_log               if $ans eq 'e';
               $self->look                         if $ans eq 'l';
           }
       }
@@ -1145,6 +1149,32 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
           system $shell;
       } else {
           $self->diag_fail("You don't seem to have a SHELL :/");
+      }
+  }
+  
+  sub show_build_log {
+      my $self = shift;
+  
+      my @pagers = (
+          $ENV{PAGER},
+          (WIN32 ? () : ('less')),
+          'more'
+      );
+      my $pager;
+      while (@pagers) {
+          $pager = shift @pagers;
+          next unless $pager;
+          $pager = $self->which($pager);
+          next unless $pager;
+          last;
+      }
+  
+      if ($pager) {
+          # win32 'more' doesn't allow "more build.log", the < is required
+          system("$pager < $self->{log}");
+      }
+      else {
+          $self->diag_fail("You don't seem to have a PAGER :/");
       }
   }
   
@@ -1705,9 +1735,10 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
   
       unless ($state->{configured_ok}) {
           while (1) {
-              my $ans = lc $self->prompt("Configuring $dist->{dist} failed.\nYou can s)kip, r)etry or l)ook ?", "s");
+              my $ans = lc $self->prompt("Configuring $dist->{dist} failed.\nYou can s)kip, r)etry, e)xamine build log, or l)ook ?", "s");
               last                                if $ans eq 's';
               return $self->configure_this($dist) if $ans eq 'r';
+              $self->show_build_log               if $ans eq 'e';
               $self->look                         if $ans eq 'l';
           }
       }
@@ -1754,7 +1785,7 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
       my $local = {
           name => $module_name,
           module => $module,
-          version => $dist->{version},
+          version => $provides->{$module}{version} || $dist->{version},
           dist => $dist->{distvname},
           pathname => $dist->{pathname},
           provides => $provides,
@@ -1774,7 +1805,7 @@ $fatpacked{"App/cpanminus/script.pm"} = <<'APP_CPANMINUS_SCRIPT';
           $^X,
           '-MExtUtils::Install=install',
           '-e',
-          qq[install({ 'blib/meta' => "$base/$Config{archname}/.meta/$dist->{distvname}" })],
+          qq[install({ 'blib/meta' => '$base/$Config{archname}/.meta/$dist->{distvname}' })],
       );
       $self->run(\@cmd);
   }
@@ -11091,7 +11122,7 @@ for module search index.
 =item --metacpan
 
 B<EXPERIMENTAL>: Use L<http://api.metacpan.org/> API for module lookup instead of
-L<http://cpanmetadb.appspot.com/>.
+L<http://cpanmetadb.plackperl.org/>.
     
 =item --prompt
 
@@ -11216,6 +11247,14 @@ library path.
 B<EXPERIMENTAL>: Specifies whether to cascade search when you specify
 multiple mirrors and a mirror has a lower version of the module than
 requested. Defaults to false.
+
+=item --skip-installed
+
+Specifies whether a module given in the command line is skipped if its latest
+version is already installed. Defaults to true.
+
+B<NOTE>: The C<PERL5LIB> environment variable have to be correctly set for this
+to work with modules installed using L<local::lib>.
 
 =item --skip-satisfied
 
