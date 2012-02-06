@@ -10,7 +10,7 @@ Version 1.70
 
 =cut
 
-our $VERSION = '1.70';
+our $VERSION = '1.72';
 
 =head1 SYNOPSIS
 
@@ -100,8 +100,8 @@ you can also use any of L<LWP::UserAgent>'s methods.
 
     $mech->add_header($name => $value);
 
-Please note that Mech does NOT support JavaScript.  Please check the
-FAQ in WWW::Mechanize::FAQ for more.
+Please note that Mech does NOT support JavaScript, you need additional software
+for that. Please check L<WWW::Mechanize::FAQ/"JavaScript"> for more.
 
 =head1 IMPORTANT LINKS
 
@@ -559,7 +559,11 @@ sub status {        my $self = shift; return $self->{status}; }
 sub ct {            my $self = shift; return $self->{ct}; }
 sub content_type {  my $self = shift; return $self->{ct}; }
 sub base {          my $self = shift; return $self->{base}; }
-sub is_html {       my $self = shift; return defined $self->ct && ($self->ct eq 'text/html'); }
+sub is_html {
+    my $self = shift;
+    return defined $self->ct &&
+        ($self->ct eq 'text/html' || $self->ct eq 'application/xhtml+xml');
+}
 
 =head2 $mech->title()
 
