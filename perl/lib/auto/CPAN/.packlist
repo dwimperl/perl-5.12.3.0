@@ -16,6 +16,7 @@ C:\strawberry\perl\lib\CPAN\Distrostatus.pm
 C:\strawberry\perl\lib\CPAN\Exception\RecursiveDependency.pm
 C:\strawberry\perl\lib\CPAN\Exception\blocked_urllist.pm
 C:\strawberry\perl\lib\CPAN\Exception\yaml_not_installed.pm
+C:\strawberry\perl\lib\CPAN\Exception\yaml_process_error.pm
 C:\strawberry\perl\lib\CPAN\FTP.pm
 C:\strawberry\perl\lib\CPAN\FTP\netrc.pm
 C:\strawberry\perl\lib\CPAN\FirstTime.pm
