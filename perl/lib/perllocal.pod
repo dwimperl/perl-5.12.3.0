@@ -8578,3 +8578,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Feb  6 19:57:34 2012: C<Module> L<URI|URI>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.59>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
