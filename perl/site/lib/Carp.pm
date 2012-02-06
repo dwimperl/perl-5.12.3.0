@@ -24,7 +24,7 @@ BEGIN {
     }
 }
 
-our $VERSION = '1.23';
+our $VERSION = '1.24';
 
 our $MaxEvalLen = 0;
 our $Verbose    = 0;
@@ -286,7 +286,18 @@ sub ret_backtrace {
     }
 
     my %i = caller_info($i);
-    $mess = "$err at $i{file} line $i{line}$tid_msg\n";
+    $mess = "$err at $i{file} line $i{line}$tid_msg";
+    if( defined $. ) {
+        local $@ = '';
+        local $SIG{__DIE__};
+        eval {
+            die;
+        };
+        if($@ =~ /^Died at .*(, <.*?> line \d+).$/ ) {
+            $mess .= $1;
+        }
+    }
+    $mess .= "\n";
 
     while ( my %i = caller_info( ++$i ) ) {
         $mess .= "\t$i{sub_name} called at $i{file} line $i{line}$tid_msg\n";
