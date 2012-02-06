@@ -8842,3 +8842,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Feb  6 20:45:04 2012: C<Module> L<Dancer|Dancer>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.3092>
+
+=item *
+
+C<EXE_FILES: script/dancer>
+
+=back
+
