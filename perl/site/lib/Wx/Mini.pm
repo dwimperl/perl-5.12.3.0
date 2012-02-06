@@ -26,7 +26,7 @@ our $alien_key = 'msw_2_8_12_uni_gcc_3_4';
 ;
 }
 
-$VERSION = '0.9902'; # bootstrap will catch wrong versions
+$VERSION = '0.9903'; # bootstrap will catch wrong versions
 $XS_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 
