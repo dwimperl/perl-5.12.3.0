@@ -13,15 +13,12 @@ BEGIN {
   }
 }
 
-our $VERSION = '0.10003';
+our $VERSION = '0.10006';
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
-# when changing minimum version don't forget to adjust L</PERFORMANCE> and
-# the Makefile.PL as well
+# when changing minimum version don't forget to adjust Makefile.PL as well
 our $__minimum_xsa_version;
-BEGIN {
-    $__minimum_xsa_version = '1.11';
-}
+BEGIN { $__minimum_xsa_version = '1.13' }
 
 our $USE_XS;
 # the unless defined is here so that we can override the value
@@ -97,7 +94,7 @@ getters and setters.
 
 =head2 mk_group_accessors
 
- __PACKAGE__->mk_group_accessors(simple => 'hair_length');
+ __PACKAGE__->mk_group_accessors(simple => 'hair_length', [ hair_color => 'hc' ]);
 
 =over 4
 
@@ -131,7 +128,7 @@ sub mk_group_accessors {
 
 =head2 mk_group_ro_accessors
 
- __PACKAGE__->mk_group_ro_accessors(simple => 'birthdate');
+ __PACKAGE__->mk_group_ro_accessors(simple => 'birthdate', [ social_security_number => 'ssn' ]);
 
 =over 4
 
@@ -155,7 +152,7 @@ sub mk_group_ro_accessors {
 
 =head2 mk_group_wo_accessors
 
- __PACKAGE__->mk_group_wo_accessors(simple => 'lie');
+ __PACKAGE__->mk_group_wo_accessors(simple => 'lie', [ subject => 'subj' ]);
 
 =over 4
 
@@ -176,66 +173,6 @@ sub mk_group_wo_accessors {
 
     $self->_mk_group_accessors('make_group_wo_accessor', $group, @fields);
 }
-
-=head2 make_group_accessor
-
- __PACKAGE__->make_group_accessor(simple => 'hair_length', 'hair_length');
-
-=over 4
-
-=item Arguments: $group, $field, $method
-
-Returns: \&accessor_coderef ?
-
-=back
-
-Called by mk_group_accessors for each entry in @fieldspec. Either returns
-a coderef which will be installed at C<&__PACKAGE__::$method>, or returns
-C<undef> if it elects to install the coderef on its own.
-
-=cut
-
-sub make_group_accessor { $gen_accessor->('rw', @_) }
-
-=head2 make_group_ro_accessor
-
- __PACKAGE__->make_group_ro_accessor(simple => 'birthdate', 'birthdate');
-
-=over 4
-
-=item Arguments: $group, $field, $method
-
-Returns: \&accessor_coderef ?
-
-=back
-
-Called by mk_group_ro_accessors for each entry in @fieldspec. Either returns
-a coderef which will be installed at C<&__PACKAGE__::$method>, or returns
-C<undef> if it elects to install the coderef on its own.
-
-=cut
-
-sub make_group_ro_accessor { $gen_accessor->('ro', @_) }
-
-=head2 make_group_wo_accessor
-
- __PACKAGE__->make_group_wo_accessor(simple => 'lie', 'lie');
-
-=over 4
-
-=item Arguments: $group, $field, $method
-
-Returns: \&accessor_coderef ?
-
-=back
-
-Called by mk_group_wo_accessors for each entry in @fieldspec. Either returns
-a coderef which will be installed at C<&__PACKAGE__::$method>, or returns
-C<undef> if it elects to install the coderef on its own.
-
-=cut
-
-sub make_group_wo_accessor { $gen_accessor->('wo', @_) }
 
 =head2 get_simple
 
@@ -422,15 +359,85 @@ sub set_component_class {
     return $_[0]->set_inherited($_[1], $_[2]);
 };
 
+=head1 INTERNAL METHODS
+
+These methods are documented for clarity, but are never meant to be called
+directly, and are not really meant for overriding either.
+
 =head2 get_super_paths
 
-Returns a list of 'parent' or 'super' class names that the current class inherited from.
+Returns a list of 'parent' or 'super' class names that the current class
+inherited from. This is what drives the traversal done by L</get_inherited>.
 
 =cut
 
 sub get_super_paths {
     return @{mro::get_linear_isa( ref($_[0]) || $_[0] )};
 };
+
+=head2 make_group_accessor
+
+ __PACKAGE__->make_group_accessor('simple', 'hair_length', 'hair_length');
+ __PACKAGE__->make_group_accessor('simple', 'hc', 'hair_color');
+
+=over 4
+
+=item Arguments: $group, $field, $accessor
+
+Returns: \&accessor_coderef ?
+
+=back
+
+Called by mk_group_accessors for each entry in @fieldspec. Either returns
+a coderef which will be installed at C<&__PACKAGE__::$accessor>, or returns
+C<undef> if it elects to install the coderef on its own.
+
+=cut
+
+sub make_group_accessor { $gen_accessor->('rw', @_) }
+
+=head2 make_group_ro_accessor
+
+ __PACKAGE__->make_group_ro_accessor('simple', 'birthdate', 'birthdate');
+ __PACKAGE__->make_group_ro_accessor('simple', 'ssn', 'social_security_number');
+
+=over 4
+
+=item Arguments: $group, $field, $accessor
+
+Returns: \&accessor_coderef ?
+
+=back
+
+Called by mk_group_ro_accessors for each entry in @fieldspec. Either returns
+a coderef which will be installed at C<&__PACKAGE__::$accessor>, or returns
+C<undef> if it elects to install the coderef on its own.
+
+=cut
+
+sub make_group_ro_accessor { $gen_accessor->('ro', @_) }
+
+=head2 make_group_wo_accessor
+
+ __PACKAGE__->make_group_wo_accessor('simple', 'lie', 'lie');
+ __PACKAGE__->make_group_wo_accessor('simple', 'subj', 'subject');
+
+=over 4
+
+=item Arguments: $group, $field, $accessor
+
+Returns: \&accessor_coderef ?
+
+=back
+
+Called by mk_group_wo_accessors for each entry in @fieldspec. Either returns
+a coderef which will be installed at C<&__PACKAGE__::$accessor>, or returns
+C<undef> if it elects to install the coderef on its own.
+
+=cut
+
+sub make_group_wo_accessor { $gen_accessor->('wo', @_) }
+
 
 =head1 PERFORMANCE
 
@@ -532,7 +539,7 @@ BEGIN {
     delete $INC{'Sub/Name.pm'};   # because older perls suck
     $@;
   };
-  *__CAG_NO_SUBNAME = $err
+  *__CAG_ENV__::NO_SUBNAME = $err
     ? sub () { $err }
     : sub () { 0 }
   ;
@@ -548,25 +555,25 @@ BEGIN {
     delete $INC{'Class/XSAccessor.pm'};
     $@;
   };
-  *__CAG_NO_CXSA = $err
+  *__CAG_ENV__::NO_CXSA = $err
     ? sub () { $err }
     : sub () { 0 }
   ;
 
 
-  *__CAG_BROKEN_GOTO = ($] < '5.008009')
+  *__CAG_ENV__::BROKEN_GOTO = ($] < '5.008009')
     ? sub () { 1 }
     : sub () { 0 }
   ;
 
 
-  *__CAG_UNSTABLE_DOLLARAT = ($] < '5.013002')
+  *__CAG_ENV__::UNSTABLE_DOLLARAT = ($] < '5.013002')
     ? sub () { 1 }
     : sub () { 0 }
   ;
 
 
-  *__CAG_TRACK_UNDEFER_FAIL = (
+  *__CAG_ENV__::TRACK_UNDEFER_FAIL = (
     $INC{'Test/Builder.pm'} || $INC{'Test/Builder2.pm'}
       and
     $0 =~ m|^ x?t / .+ \.t $|x
@@ -578,7 +585,7 @@ BEGIN {
 # Autodetect unless flag supplied
 my $xsa_autodetected;
 if (! defined $USE_XS) {
-  $USE_XS = __CAG_NO_CXSA ? 0 : 1;
+  $USE_XS = __CAG_ENV__::NO_CXSA ? 0 : 1;
   $xsa_autodetected++;
 }
 
@@ -663,8 +670,8 @@ $gen_accessor = sub {
   # Thus the final method (properly labeled and all) is installed in the
   # calling-package's namespace
   if ($USE_XS and $group eq 'simple') {
-    die sprintf( "Class::XSAccessor requested but not available:\n%s\n", __CAG_NO_CXSA )
-      if __CAG_NO_CXSA;
+    die sprintf( "Class::XSAccessor requested but not available:\n%s\n", __CAG_ENV__::NO_CXSA )
+      if __CAG_ENV__::NO_CXSA;
 
     my ($expected_cref, $cached_implementation);
     my $ret = $expected_cref = sub {
@@ -675,9 +682,9 @@ $gen_accessor = sub {
       # this block over and over again
       my $resolved_implementation = $cached_implementation->{$current_class} || do {
         if (
-          $current_class->can('get_simple') == $original_simple_getter
+          ($current_class->can('get_simple')||0) == $original_simple_getter
             &&
-          $current_class->can('set_simple') == $original_simple_setter
+          ($current_class->can('set_simple')||0) == $original_simple_setter
         ) {
           # nothing has changed, might as well use the XS crefs
           #
@@ -719,7 +726,7 @@ $gen_accessor = sub {
       # if after this shim was created someone wrapped it with an 'around',
       # we can not blindly reinstall the method slot - we will destroy the
       # wrapper. Silently chain execution further...
-      if ( !$expected_cref or $expected_cref != $current_class->can($methname) ) {
+      if ( !$expected_cref or $expected_cref != ($current_class->can($methname)||0) ) {
 
         # there is no point in re-determining it on every subsequent call,
         # just store for future reference
@@ -727,12 +734,12 @@ $gen_accessor = sub {
 
         # older perls segfault if the cref behind the goto throws
         # http://rt.perl.org/rt3/Public/Bug/Display.html?id=35878
-        return $resolved_implementation->(@_) if __CAG_BROKEN_GOTO;
+        return $resolved_implementation->(@_) if __CAG_ENV__::BROKEN_GOTO;
 
         goto $resolved_implementation;
       }
 
-      if (__CAG_TRACK_UNDEFER_FAIL) {
+      if (__CAG_ENV__::TRACK_UNDEFER_FAIL) {
         my $deferred_calls_seen = do {
           no strict 'refs';
           \%{"${current_class}::__cag_deferred_xs_shim_invocations"}
@@ -769,7 +776,7 @@ $gen_accessor = sub {
 
       # older perls segfault if the cref behind the goto throws
       # http://rt.perl.org/rt3/Public/Bug/Display.html?id=35878
-      return $resolved_implementation->(@_) if __CAG_BROKEN_GOTO;
+      return $resolved_implementation->(@_) if __CAG_ENV__::BROKEN_GOTO;
 
       goto $resolved_implementation;
     };
@@ -779,12 +786,12 @@ $gen_accessor = sub {
   }
 
   # no Sub::Name - just install the coderefs directly (compiling every time)
-  elsif (__CAG_NO_SUBNAME) {
+  elsif (__CAG_ENV__::NO_SUBNAME) {
     my $src = $accessor_maker_cache->{source}{$type}{$group}{$field} ||=
       $maker_templates->{$type}{pp_code}->($group, $field);
 
     no warnings 'redefine';
-    local $@ if __CAG_UNSTABLE_DOLLARAT;
+    local $@ if __CAG_ENV__::UNSTABLE_DOLLARAT;
     eval "sub ${class}::${methname} { $src }";
 
     undef;  # so that no further attempt will be made to install anything
@@ -796,7 +803,7 @@ $gen_accessor = sub {
       my $src = $accessor_maker_cache->{source}{$type}{$group}{$field} ||=
         $maker_templates->{$type}{pp_code}->($group, $field);
 
-      local $@ if __CAG_UNSTABLE_DOLLARAT;
+      local $@ if __CAG_ENV__::UNSTABLE_DOLLARAT;
       eval "sub { my \$dummy; sub { \$dummy if 0; $src } }" or die $@;
     })->()
   }
