@@ -1,55 +1,130 @@
 package Padre::Plugin::PerlTidy;
-BEGIN {
-  $Padre::Plugin::PerlTidy::VERSION = '0.16';
-}
-
-# ABSTRACT: Format perl files using Perl::Tidy
-
 
 use 5.008002;
 use strict;
 use warnings;
-use Params::Util   ();
+use File::Spec     ();
+use File::Basename ();
+use Params::Util 1.04 ();
 use Padre::Current ();
 use Padre::Wx      ();
-use Padre::Plugin  ();
+use Padre::Plugin 0.92 ();
+use FindBin qw($Bin);
 
-our @ISA = 'Padre::Plugin';
+our $VERSION = '0.21';
+our @ISA     = 'Padre::Plugin';
 
-# This constant is used when storing
-# and restoring the cursor position.
+# This constant is used when storing and restoring the cursor position.
 # Keep it small to limit resource use.
-use constant {
-	SELECTIONSIZE => 40,
-};
+use constant SELECTIONSIZE => 40;
 
 sub padre_interfaces {
-	'Padre::Plugin' => '0.43', 'Padre::Config' => '0.54';
+	return (
+		'Padre::Plugin' => '0.92',
+		'Padre::Wx::Main' => '0.92',
+	);
 }
 
 sub plugin_name {
-	Wx::gettext('Perl Tidy');
+	return Wx::gettext('Perl Tidy');
 }
 
 sub menu_plugins_simple {
 	my $self = shift;
 	return $self->plugin_name => [
-		Wx::gettext("Tidy the active document\tAlt+Shift+F") => \&tidy_document,
-		Wx::gettext("Tidy the selected text\tAlt+Shift+G") =>
-			\&tidy_selection,
-		'---' => undef,
-		Wx::gettext('Export active document to HTML file') =>
-			\&export_document,
-		Wx::gettext('Export selected text to HTML file') =>
-			\&export_selection,
+		Wx::gettext("Tidy the active document\tAlt+Shift+F") => sub {
+			$self->tidy_document;
+		},
+		Wx::gettext("Tidy the selected text\tAlt+Shift+G") => sub {
+			$self->tidy_selection;
+		},
+		'---'                                              => undef,
+		Wx::gettext('Export active document to HTML file') => sub {
+			$self->export_document;
+		},
+		Wx::gettext('Export selected text to HTML file') => sub {
+			$self->export_selection;
+		},
 	];
 }
 
+
+
+
+
+######################################################################
+# Menu Handlers
+
+sub tidy_document {
+	my $self     = shift;
+	my $main     = $self->main;
+	my $document = $self->current->document;
+	my $text     = $document->text_get;
+
+	# Tidy the entire current document
+	$self->{over_ride} = 0;
+	my $perltidyrc = $self->_which_tidyrc;
+	my $tidy = $self->_tidy( $text, $perltidyrc );
+	unless ( defined Params::Util::_STRING($tidy) ) {
+		return;
+	}
+
+	# Overwrite the entire document
+	my ( $regex, $start ) = $self->_get_cursor_position;
+	$document->text_set($tidy);
+	$self->_set_cursor_position( $regex, $start );
+}
+
+sub tidy_selection {
+	my $self    = shift;
+	my $main    = $self->main;
+	my $current = $self->current;
+	my $text    = $current->text;
+
+	# Tidy the current selected text
+	$self->{over_ride} = 0;
+	my $perltidyrc = $self->_which_tidyrc;
+
+	my $tidy = $self->_tidy( $text, $perltidyrc );
+	unless ( defined Params::Util::_STRING($tidy) ) {
+		return;
+	}
+
+	# If the selected text does not have a newline at the end,
+	# trim off any that Perl::Tidy has added.
+	unless ( $text =~ /\n\z/ ) {
+		$tidy =~ s{\n\z}{};
+	}
+
+	# Overwrite the selected text
+	$current->editor->ReplaceSelection($tidy);
+}
+
+sub export_selection {
+	my $self = shift;
+	my $text = $self->current->text or return;
+	$self->_export($text);
+}
+
+sub export_document {
+	my $self = shift;
+	my $document = $self->current->document or return;
+	$self->_export( $document->text_get );
+}
+
+
+
+
+
+######################################################################
+# Support Methods
+
 sub _tidy {
-	my $main     = shift;
-	my $current  = shift;
-	my $source   = shift;
-	my $document = $current->document;
+	my $self       = shift;
+	my $source     = shift;
+	my $perltidyrc = shift;
+	my $main       = $self->main;
+	my $document   = $self->current->document;
 
 	# Check for problems
 	unless ( defined $source ) {
@@ -68,22 +143,40 @@ sub _tidy {
 		destination => \$destination,
 		errorfile   => \$errorfile,
 	);
+	if ( $self->{over_ride} ) {
+		$tidyargs{'perltidyrc'} = $perltidyrc;
+	}
+	if ( $self->{over_ride} ) {
+		$tidyargs{'perltidyrc'} = $perltidyrc;
+	}
 
-	#Make sure output is visible...
-	$main->show_output(1);
-	my $output = $main->output;
-
-	my $perltidyrc = $document->project->config->config_perltidy;
-	if ($perltidyrc) {
-		$tidyargs{perltidyrc} = $perltidyrc;
-		$output->AppendText("Perl::Tidy running with project configuration $perltidyrc\n");
+	my $output;
+	if ( $main->config->info_on_statusbar ) {
+		$main->info( Wx::gettext("Running Tidy, don't forget to save changes.") );
 	} else {
-		$output->AppendText("Perl::Tidy running with default or user configuration\n");
+
+		#Make sure output is visible...
+		$main->show_output(1);
+		$output = $main->output;
 	}
 
 	# TODO: suppress the senseless warning from PerlTidy
-	require Perl::Tidy;
-	eval { Perl::Tidy::perltidy(%tidyargs); };
+	eval {
+		require Perl::Tidy;
+		Perl::Tidy::perltidy(%tidyargs);
+	};
+
+	if ( defined $errorfile ) {
+		$main->show_output(1);
+		$output = $main->output;
+		my $filename =
+			  $document->filename
+			? $document->filename
+			: $document->get_title;
+		my $width = length($filename) + 2;
+		$output->AppendText( "\n\n" . "-" x $width . "\n" . $filename . "\n" . "-" x $width . "\n" );
+		$output->AppendText("$errorfile\n");
+	}
 
 	if ($@) {
 		$main->error( Wx::gettext("PerlTidy Error") . ":\n" . $@ );
@@ -91,7 +184,12 @@ sub _tidy {
 	}
 
 	if ( defined $errorfile ) {
-		my $filename = $document->filename ? $document->filename : $document->get_title;
+		$main->show_output(1);
+		$output = $main->output;
+		my $filename =
+			  $document->filename
+			? $document->filename
+			: $document->get_title;
 		my $width = length($filename) + 2;
 		$output->AppendText( "\n\n" . "-" x $width . "\n" . $filename . "\n" . "-" x $width . "\n" );
 		$output->AppendText("$errorfile\n");
@@ -100,95 +198,19 @@ sub _tidy {
 	return $destination;
 }
 
-sub tidy_selection {
-	my $main = shift;
-
-	# Tidy the current selected text
-	my $current = $main->current;
-	my $text    = $current->text;
-	my $tidy    = _tidy( $main, $current, $text );
-	unless ( defined Params::Util::_STRING($tidy) ) {
-		return;
-	}
-
-	# If the selected text does not have a newline at the end,
-	# trim off any that Perl::Tidy has added.
-	unless ( $text =~ /\n\z/ ) {
-		$tidy =~ s{\n\z}{};
-	}
-
-	# Overwrite the selected text
-	$current->editor->ReplaceSelection($tidy);
-}
-
-sub tidy_document {
-	my $main = shift;
-
-	# Tidy the entire current document
-	my $current  = $main->current;
-	my $document = $current->document;
-	my $text     = $document->text_get;
-	my $tidy     = _tidy( $main, $current, $text );
-	unless ( defined Params::Util::_STRING($tidy) ) {
-		return;
-	}
-
-	# Overwrite the entire document
-	my ( $regex, $start ) = _store_cursor_position($current);
-	$document->text_set($tidy);
-	_restore_cursor_position( $current, $regex, $start );
-}
-
-sub _get_filename {
-	my $main = shift;
-
-	my $doc         = $main->current->document or return;
-	my $current     = $doc->filename;
-	my $default_dir = '';
-
-	if ( defined $current ) {
-		require File::Basename;
-		$default_dir = File::Basename::dirname($current);
-	}
-
-	require File::Spec;
-
-	while (1) {
-		my $dialog = Wx::FileDialog->new(
-			$main, Wx::gettext("Save file as..."),
-			$default_dir, ( $current or $doc->get_title ) . '.html',
-			"*.*", Wx::wxFD_SAVE,
-		);
-		if ( $dialog->ShowModal == Wx::wxID_CANCEL ) {
-			return;
-		}
-		my $filename = $dialog->GetFilename;
-		$default_dir = $dialog->GetDirectory;
-		my $path = File::Spec->catfile( $default_dir, $filename );
-		if ( -e $path ) {
-			return $path if $main->yes_no( Wx::gettext("File already exists. Overwrite it?"), Wx::gettext("Exist") );
-		} else {
-			return $path;
-		}
-	}
-}
-
 sub _export {
-	my ( $main, $src ) = @_;
-
-	require Perl::Tidy;
-
+	my $self     = shift;
+	my $src      = shift;
+	my $main     = $self->main;
+	my $document = $main->current->document;
 	return unless defined $src;
 
-	my $doc = $main->current->document;
-
-	if ( !$doc->isa('Padre::Document::Perl') ) {
+	if ( !$document->isa('Padre::Document::Perl') ) {
 		$main->error( Wx::gettext('Document is not a Perl document') );
 		return;
 	}
 
-	my $filename = _get_filename($main);
-
+	my $filename = $self->_get_filename;
 	return unless defined $filename;
 
 	my ( $output, $error );
@@ -203,7 +225,7 @@ sub _export {
 	$main->show_output(1);
 	$output = $main->output;
 
-	if ( my $tidyrc = $doc->project->config->config_perltidy ) {
+	if ( my $tidyrc = $document->project->config->config_perltidy ) {
 		$tidyargs{perltidyrc} = $tidyrc;
 		$output->AppendText("Perl\::Tidy running with project-specific configuration $tidyrc\n");
 	} else {
@@ -211,18 +233,20 @@ sub _export {
 	}
 
 	# TODO: suppress the senseless warning from PerlTidy
-	eval { Perl::Tidy::perltidy(%tidyargs); };
-
+	eval {
+		require Perl::Tidy;
+		Perl::Tidy::perltidy(%tidyargs);
+	};
 	if ($@) {
 		$main->error( Wx::gettext("PerlTidy Error") . ":\n" . $@ );
 		return;
 	}
 
 	if ( defined $error ) {
-		my $width = length( $doc->filename ) + 2;
+		my $width = length( $document->filename ) + 2;
 		my $main  = Padre::Current->main;
 
-		$output->AppendText( "\n\n" . "-" x $width . "\n" . $doc->filename . "\n" . "-" x $width . "\n" );
+		$output->AppendText( "\n\n" . "-" x $width . "\n" . $document->filename . "\n" . "-" x $width . "\n" );
 		$output->AppendText("$error\n");
 		$main->show_output(1);
 	}
@@ -230,27 +254,51 @@ sub _export {
 	return;
 }
 
-sub export_selection {
-	my $main = shift;
-	my $text = $main->current->text;
-	_export( $main, $text );
-	return;
-}
+sub _get_filename {
+	my $self     = shift;
+	my $main     = $self->main;
+	my $document = $self->current->document or return;
+	my $filename = $document->filename;
+	my $dir      = '';
 
-sub export_document {
-	my $main = shift;
-	my $text = $main->current->document->text_get;
-	_export( $main, $text );
-	return;
+	if ( defined $filename ) {
+		$dir = File::Basename::dirname($filename);
+	}
+
+	while (1) {
+		my $dialog = Wx::FileDialog->new(
+			$main,
+			Wx::gettext("Save file as..."),
+			$dir,
+			( $filename or $document->get_title ) . '.html',
+			"*.*",
+			Wx::wxFD_SAVE,
+		);
+		if ( $dialog->ShowModal == Wx::wxID_CANCEL ) {
+			return;
+		}
+		my $filename = $dialog->GetFilename;
+		$dir = $dialog->GetDirectory;
+		my $path = File::Spec->catfile( $dir, $filename );
+		if ( -e $path ) {
+			return $path
+				if $main->yes_no(
+				Wx::gettext("File already exists. Overwrite it?"),
+				Wx::gettext("Exist")
+				);
+		} else {
+			return $path;
+		}
+	}
 }
 
 # parameter: $main, compiled regex
-sub _restore_cursor_position {
-	my $current = shift;
-	my $regex   = shift;
-	my $start   = shift;
-	my $editor  = $current->editor;
-	my $text    = $editor->GetTextRange(
+sub _set_cursor_position {
+	my $self   = shift;
+	my $regex  = shift;
+	my $start  = shift;
+	my $editor = $self->current->editor or return;
+	my $text   = $editor->GetTextRange(
 		( $start - SELECTIONSIZE ) > 0 ? $start - SELECTIONSIZE
 		: 0,
 		( $start + SELECTIONSIZE < $editor->GetLength ) ? $start + SELECTIONSIZE
@@ -271,10 +319,10 @@ sub _restore_cursor_position {
 # parameter: $current
 # returns: compiled regex, start position
 # compiled regex is /^./ if no valid regex can be reconstructed.
-sub _store_cursor_position {
-	my $current = shift;
-	my $editor  = $current->editor;
-	my $pos     = $editor->GetCurrentPos;
+sub _get_cursor_position {
+	my $self   = shift;
+	my $editor = $self->current->editor or return;
+	my $pos    = $editor->GetCurrentPos;
 
 	my $start;
 	if ( ( $pos - SELECTIONSIZE ) > 0 ) {
@@ -302,51 +350,45 @@ sub _store_cursor_position {
 	return ( $regex, $start );
 }
 
+# Pick the revelant tidyrc file
+sub _which_tidyrc {
+	my $self = shift;
+
+	# perl tidy Padre/tools
+	if ( $ENV{'PADRE_DEV'} ) {
+		my $perltidyrc = eval { File::Spec->catfile( $Bin, '../../tools/perltidyrc' ); };
+		if ( -e $perltidyrc ) {
+			$self->{over_ride} = 1;
+			return $perltidyrc;
+		}
+
+		my $main = $self->main;
+		Wx::MessageBox(
+			Wx::gettext("You need to install from SVN Padre/tools."),
+			Wx::gettext("tools/perltidyrc missing"),
+			Wx::wxCANCEL,
+			$main,
+		);
+	}
+
+	return;
+}
+
 1;
 
-
-__END__
 =pod
 
 =head1 NAME
 
 Padre::Plugin::PerlTidy - Format perl files using Perl::Tidy
 
-=head1 VERSION
+=head1 DESCRIPTION
 
-version 0.16
-
-=head1 SYNOPSIS
-
-This is a simple plugin to run Perl::Tidy on your source code.
+This is a simple plugin to run L<Perl::Tidy> on your source code.
 
 Currently there are no customisable options (since the Padre plugin system
 doesn't support that yet) - however Perl::Tidy will use your normal .perltidyrc
 file if it exists (see Perl::Tidy documentation).
-
-=head1 INSTALLATION
-
-You can install this module like any other Perl module and it will
-become available in your Padre editor. However, you can also
-choose to install it into your user's Padre configuration directory only:
-
-=over 4
-
-=item * Install the prerequisite modules.
-
-=item * perl Makefile.PL
-
-=item * make
-
-=item * make installplugin
-
-=back
-
-This will install the plugin as PerlTidy.par into your user's ~/.padre/plugins
-directory.
-
-Similarly, "make plugin" will just create the PerlTidy.par which you can
-then copy manually.
 
 =head1 METHODS
 
@@ -378,30 +420,4 @@ Runs Perl::Tidy on the current code selection.
 
 Export the current code selection as html.
 
-=head1 AUTHORS
-
-=over 4
-
-=item *
-
-Brian Cassidy <bricas@cpan.org>
-
-=item *
-
-Patrick Donelan
-
-=item *
-
-Ahmad M. Zawawi <ahmad.zawawi@gmail.com>
-
-=back
-
-=head1 COPYRIGHT AND LICENSE
-
-This software is copyright (c) 2010 by Patrick Donelanm, Brian Cassidy.
-
-This is free software; you can redistribute it and/or modify it under
-the same terms as the Perl 5 programming language system itself.
-
 =cut
-
