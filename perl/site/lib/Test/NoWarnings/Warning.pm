@@ -6,7 +6,7 @@ use Carp ();
 
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '1.02';
+	$VERSION = '1.04';
 
 	# Optional stacktrace support
 	eval "require Devel::StackTrace";
@@ -56,7 +56,7 @@ sub fillTest {
 	$self->{Test}      = $prev_test;
 	my @tests          = $builder->details;
 	my $prev_test_name = $prev_test ? $tests[$prev_test - 1]->{name} : "";
-	$self->{TestName}  =  $prev_test_name;
+	$self->{TestName}  = $prev_test_name;
 }
 
 sub getTest {

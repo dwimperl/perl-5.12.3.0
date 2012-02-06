@@ -10,10 +10,12 @@ use Test::NoWarnings::Warning ();
 
 use vars qw( $VERSION @EXPORT_OK @ISA $do_end_test );
 BEGIN {
-	$VERSION   = '1.02';
+	$VERSION   = '1.04';
 	@ISA       = 'Exporter';
 	@EXPORT_OK = qw(
-		clear_warnings had_no_warnings warnings
+		clear_warnings
+		had_no_warnings
+		warnings
 	);
 
 	# Do we add the warning test at the end?
@@ -23,11 +25,16 @@ BEGIN {
 my $TEST     = Test::Builder->new;
 my $PID      = $$;
 my @WARNINGS = ();
+my $EARLY    = 0;
 
 $SIG{__WARN__} = make_catcher(\@WARNINGS);
 
 sub import {
 	$do_end_test = 1;
+	if ( grep { $_ eq ':early' } @_ ) {
+		@_ = grep { $_ ne ':early' } @_;
+		$EARLY = 1;
+	}
 	goto &Exporter::import;
 }
 
@@ -65,9 +72,15 @@ sub make_catcher {
 	return sub {
 		my $msg = shift;
 
+		# Generate the warning
 		$Carp::Internal{__PACKAGE__.""}++;
 		push(@$array, make_warning($msg));
 		$Carp::Internal{__PACKAGE__.""}--;
+
+		# Show the diag early rather than at the end
+		if ( $EARLY ) {
+			$TEST->diag( $array->[-1]->toString );
+		}
 
 		return $msg;
 	};
@@ -85,8 +98,10 @@ sub had_no_warnings {
 		$ok = 1;
 	} else {
 		$ok = 0;
-		$diag = "There were ".@WARNINGS." warning(s)\n";
-		$diag .= join "----------\n", map { $_->toString } @WARNINGS;
+		$diag = "There were " . scalar(@WARNINGS) . " warning(s)\n";
+		unless ( $EARLY ) {
+			$diag .= join "----------\n", map { $_->toString } @WARNINGS;
+		}
 	}
 
 	$TEST->ok($ok, $name) || $TEST->diag($diag);
@@ -152,27 +167,27 @@ If some of your tests B<are supposed to> produce warnings then you should be
 capturing and checking them with L<Test::Warn>, that way L<Test::NoWarnings>
 will not see them and so not complain.
 
-The test is run by an END block in Test::NoWarnings. It will not be run when
-any forked children exit.
+The test is run by an C<END> block in Test::NoWarnings. It will not be run
+when any forked children exit.
 
 =head1 USAGE
 
 Simply by using the module, you automatically get an extra test at the end
 of your script that checks that no warnings were emitted. So just stick
 
-  use Test::NoWarnings
+  use Test::NoWarnings;
 
 at the top of your script and continue as normal.
 
 If you want more control you can invoke the test manually at any time with
-C<had_no_warnings()>.
+C<had_no_warnings>.
 
 The warnings your test has generated so far are stored in an array. You can
 look inside and clear this whenever you want with C<warnings()> and
-C<clear_warnings()>, however, if you are doing this sort of thing then you
+C<clear_warnings>, however, if you are doing this sort of thing then you
 probably want to use L<Test::Warn> in combination with L<Test::NoWarnings>.
 
-=head1 USE vs REQUIRE
+=head2 use vs require
 
 You will almost always want to do
 
@@ -181,7 +196,7 @@ You will almost always want to do
 If you do a C<require> rather than a C<use>, then there will be no automatic
 test at the end of your script.
 
-=head1 OUTPUT
+=head2 Output
 
 If warning is captured during your test then the details will output as part
 of the diagnostics. You will get:
@@ -204,7 +219,27 @@ module
 
 =back
 
-=head1 EXPORTABLE FUNCTIONS
+By default, all warning messages will be emitted in one block at the end of
+your test script.
+
+=head2 The :early pragma
+
+One common complaint from people using Test::NoWarnings is that all of the
+warnings are emitted in one go at the end. While this is the safest and
+most correct time to emit these diagnostics, it can make debugging these
+warnings difficult.
+
+As of Test::NoWarnings 1.04 you can provide an experimental C<:early> pragma
+when loading the module to force warnings to be thrown via diag at the time
+that they actually occur.
+
+  use Test::NoWarnings ':early';
+
+As this will cause the diag to be emitted against the previous test and not
+the one in which the warning actually occurred it is recommended that the
+pragma be turned on only for debugging and left off when not needed.
+
+=head1 FUNCTIONS
 
 =head2 had_no_warnings
 
@@ -290,7 +325,7 @@ Adam Kennedy E<lt>adamk@cpan.orgE<gt>
 
 Copyright 2003 - 2007 Fergal Daly.
 
-Some parts copyright 2010 Adam Kennedy.
+Some parts copyright 2010 - 2011 Adam Kennedy.
 
 This program is free software and comes with no warranty. It is distributed
 under the LGPL license
