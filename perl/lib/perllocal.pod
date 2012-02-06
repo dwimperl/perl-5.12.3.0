@@ -7962,3 +7962,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Feb  6 15:32:25 2012: C<Module> L<DBIx::Class|DBIx::Class>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.08196>
+
+=item *
+
+C<EXE_FILES: script/dbicadmin>
+
+=back
+
