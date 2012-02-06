@@ -13,11 +13,11 @@ use Term::ANSIColor qw(colored);
 use Cwd ();
 use JSON::PP qw(decode_json);
 
-our $VERSION = "0.25";
+our $VERSION = "0.28";
 
 my $perl_version     = version->new($])->numify;
 my $depended_on_by   = 'http://deps.cpantesters.org/depended-on-by.pl?dist=';
-my $cpanmetadb       = 'http://cpanmetadb.appspot.com/v1.0/package';
+my $cpanmetadb       = 'http://cpanmetadb.plackperl.org/v1.0/package';
 my @core_modules_dir = do { my %h; grep !$h{$_}++, @Config{qw/archlib archlibexp privlib privlibexp/} };
 
 $ENV{ANSI_COLORS_DISABLED} = 1 if $^O eq 'MSWin32';
@@ -236,19 +236,7 @@ sub is_core_module {
 sub ask_permission {
     my($self, $module, $dist, $vname, $packlist) = @_;
 
-    my(@deps, %seen);
-    if ($self->{check_deps} && !$self->{force}) {
-        $vname ||= $self->vname_for($module) || $module;
-        $self->puts("Checking modules depending on $vname") if $self->{verbose};
-        my $content = $self->fetch("$depended_on_by$vname") || '';
-        for my $dep ($content =~ m|<li><a href=[^>]+>([a-zA-Z0-9_:-]+)|smg) {
-            $dep =~ s/^\s+|\s+$//smg; # trim
-            next if $seen{$dep}++;
-            local $OUTPUT_INDENT_LEVEL = $OUTPUT_INDENT_LEVEL + 1;
-            $self->puts("Finding $dep in your \@INC (dependencies)") if $self->{verbose};
-            push @deps, $dep if $self->locate_pack($dep);
-        }
-    }
+    my @deps = $self->find_deps($vname, $module);
 
     $self->puts if $self->{verbose};
     $self->puts("$module is included in the distribution $dist and contains:\n")
@@ -272,6 +260,27 @@ sub ask_permission {
     }
 
     return lc($self->prompt("Are you sure to uninstall $dist?", $default)) eq 'y';
+}
+
+sub find_deps {
+    my ($self, $vname, $module) = @_;
+
+    return unless $self->{check_deps} && !$self->{force};
+    $vname ||= $self->vname_for($module) or return;
+
+    $self->puts("Checking modules depending on $vname") if $self->{verbose};
+    my $content = $self->fetch("$depended_on_by$vname") or return;
+
+    my (@deps, %seen);
+    for my $dep ($content =~ m|<li><a href=[^>]+>([a-zA-Z0-9_:-]+)|smg) {
+        $dep =~ s/^\s+|\s+$//smg; # trim
+        next if $seen{$dep}++;
+        local $OUTPUT_INDENT_LEVEL = $OUTPUT_INDENT_LEVEL + 1;
+        $self->puts("Finding $dep in your \@INC (dependencies)") if $self->{verbose};
+        push @deps, $dep if $self->locate_pack($dep);
+    }
+
+    return @deps;
 }
 
 sub prompt {
@@ -357,7 +366,8 @@ sub fetch {
     my ($self, $url) = @_;
     $self->puts("-> Getting from $url") if $self->{verbose};
     my $res = HTTP::Tiny->new->get($url);
-    die "[$res->{status}] fetch $url failed!!\n" if !$res->{success} && $res->{status} != 404;
+    return if $res->{status} == 404;
+    die "[$res->{status}] fetch $url failed!!\n" if !$res->{success};
     return $res->{content};
 }
 
