@@ -1,7 +1,7 @@
 #---------------------------------------------------------------------
 package Win32::IPC;
 #
-# Copyright 1998-2008 Christopher J. Madsen
+# Copyright 1998-2012 Christopher J. Madsen
 #
 # Created: 3 Feb 1998 from the ActiveWare version
 #   (c) 1995 Microsoft Corporation. All rights reserved.
@@ -22,19 +22,19 @@ package Win32::IPC;
 # ABSTRACT: Base class for Win32 synchronization objects
 #---------------------------------------------------------------------
 
+use 5.006;
 use strict;
 use warnings;
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 
 BEGIN
 {
-  $VERSION = '1.08';
+  our $VERSION = '1.09';
   # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
   require Exporter;
-  @ISA       = qw( Exporter );
-  @EXPORT    = qw( INFINITE WaitForMultipleObjects );
-  @EXPORT_OK = qw( wait_any wait_all );
+  our @ISA       = qw( Exporter );
+  our @EXPORT    = qw( INFINITE WaitForMultipleObjects );
+  our @EXPORT_OK = qw( wait_any wait_all );
 
   require XSLoader;
   XSLoader::load('Win32::IPC', $VERSION);
@@ -63,9 +63,9 @@ Win32::IPC - Base class for Win32 synchronization objects
 
 =head1 VERSION
 
-This document describes version 1.08 of
-Win32::IPC, released December 11, 2010
-as part of Win32-IPC version 1.08.
+This document describes version 1.09 of
+Win32::IPC, released January 14, 2012
+as part of Win32-IPC version 1.09.
 
 =head1 SYNOPSIS
 
@@ -194,9 +194,6 @@ under Cygwin.
 
 None.
 
-=for Pod::Coverage
-^constant$
-
 =head1 INCOMPATIBILITIES
 
 Prior to version 1.06, the Win32 IPC modules treated C<undef> values
@@ -207,16 +204,38 @@ or 0 (along with a warning about "Use of uninitialized value...").
 
 =head1 BUGS AND LIMITATIONS
 
-No bugs have been reported.
+If your program uses signal handlers (installed using C<%SIG>), and a
+handled signal arrives while the program is in one of the IPC wait
+functions (C<wait>, C<wait_any>, or C<wait_all>), the signal handler
+will not be executed until the wait ends.  For instance, this means
+you can't interrupt a wait with Control-C if you have installed a
+C<$SIG{INT}> handler.
+
+The root cause of this is that Perl defers running the signal handler
+until the Perl interpreter is in a safe state.
+See L<perlipc/"Deferred Signals (Safe Signals)">.  I don't know of any
+proper solution to this; if you do, please let me know.
+
+One possible workaround is to use threads, and do the wait in a
+secondary thread while the main thread continues to handle signals.
+The main thread could signal the secondary thread using a
+L<Win32::Event> object.
+
+Another workaround is to use a relatively short timeout.  You can
+retry the wait as needed.  Each timeout gives any queued-up signal
+handlers a chance to run.
+
+=for Pod::Coverage
+^constant$
 
 =head1 AUTHOR
 
 Christopher J. Madsen  S<C<< <perl AT cjmweb.net> >>>
 
-Please report any bugs or feature requests to
-S<C<< <bug-Win32-IPC AT rt.cpan.org> >>>,
+Please report any bugs or feature requests
+to S<C<< <bug-Win32-IPC AT rt.cpan.org> >>>
 or through the web interface at
-L<http://rt.cpan.org/Public/Bug/Report.html?Queue=Win32-IPC>
+L<< http://rt.cpan.org/Public/Bug/Report.html?Queue=Win32-IPC >>.
 
 You can follow or contribute to Win32-IPC's development at
 L<< http://github.com/madsen/win32-ipc >>.
@@ -226,7 +245,7 @@ L<http://www.ActiveState.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 1998-2010 Christopher J. Madsen
+Copyright 1998-2012 Christopher J. Madsen
 
 Created: 3 Feb 1998 from the ActiveWare version
   (c) 1995 Microsoft Corporation. All rights reserved.

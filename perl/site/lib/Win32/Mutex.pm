@@ -1,7 +1,7 @@
 #---------------------------------------------------------------------
 package Win32::Mutex;
 #
-# Copyright 1998-2008 Christopher J. Madsen
+# Copyright 1998-2012 Christopher J. Madsen
 #
 # Created: 3 Feb 1998 from the ActiveWare version
 #   (c) 1995 Microsoft Corporation. All rights reserved.
@@ -22,19 +22,19 @@ package Win32::Mutex;
 # ABSTRACT: Use Win32 mutex objects from Perl
 #---------------------------------------------------------------------
 
+use 5.006;
 use strict;
 use warnings;
-use vars qw($VERSION @ISA @EXPORT_OK);
 
 use Win32::IPC 1.00 '/./';      # Import everything
 
 BEGIN
 {
-  $VERSION = '1.08';
+  our $VERSION = '1.09';
   # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
-  @ISA = qw(Win32::IPC);        # Win32::IPC isa Exporter
-  @EXPORT_OK = qw(
+  our @ISA = qw(Win32::IPC);    # Win32::IPC isa Exporter
+  our @EXPORT_OK = qw(
     wait_any wait_all INFINITE
   );
 
@@ -55,9 +55,9 @@ Win32::Mutex - Use Win32 mutex objects from Perl
 
 =head1 VERSION
 
-This document describes version 1.08 of
-Win32::Mutex, released December 11, 2010
-as part of Win32-IPC version 1.08.
+This document describes version 1.09 of
+Win32::Mutex, released January 14, 2012
+as part of Win32-IPC version 1.09.
 
 =head1 SYNOPSIS
 
@@ -153,16 +153,17 @@ or 0 (along with a warning about "Use of uninitialized value...").
 
 =head1 BUGS AND LIMITATIONS
 
-No bugs have been reported.
+Signal handlers will not be called during the C<wait> method.
+See L<Win32::IPC/"BUGS AND LIMITATIONS"> for details.
 
 =head1 AUTHOR
 
 Christopher J. Madsen  S<C<< <perl AT cjmweb.net> >>>
 
-Please report any bugs or feature requests to
-S<C<< <bug-Win32-IPC AT rt.cpan.org> >>>,
+Please report any bugs or feature requests
+to S<C<< <bug-Win32-IPC AT rt.cpan.org> >>>
 or through the web interface at
-L<http://rt.cpan.org/Public/Bug/Report.html?Queue=Win32-IPC>
+L<< http://rt.cpan.org/Public/Bug/Report.html?Queue=Win32-IPC >>.
 
 You can follow or contribute to Win32-IPC's development at
 L<< http://github.com/madsen/win32-ipc >>.
@@ -172,7 +173,7 @@ L<http://www.ActiveState.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 1998-2010 Christopher J. Madsen
+Copyright 1998-2012 Christopher J. Madsen
 
 Created: 3 Feb 1998 from the ActiveWare version
   (c) 1995 Microsoft Corporation. All rights reserved.
