@@ -7830,3 +7830,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Feb  6 14:41:07 2012: C<Module> L<SQL::Abstract|SQL::Abstract>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.72>
+
+=item *
+
+C<EXE_FILES: script/format-sql>
+
+=back
+
