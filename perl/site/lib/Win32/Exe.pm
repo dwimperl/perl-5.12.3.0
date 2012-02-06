@@ -1,5 +1,5 @@
 package Win32::Exe;
-$Win32::Exe::VERSION = '0.15';
+$Win32::Exe::VERSION = '0.17';
 
 =head1 NAME
 
@@ -7,8 +7,8 @@ Win32::Exe - Manipulate Win32 executable files
 
 =head1 VERSION
 
-This document describes version 0.15 of Win32::Exe, released
-November 10, 2010.
+This document describes version 0.17 of Win32::Exe, released
+July 19, 2011.
 
 =head1 SYNOPSIS
 
@@ -16,9 +16,11 @@ November 10, 2010.
     my $exe = Win32::Exe->new('c:/windows/notepad.exe');
     
     # add a default resource structure if none exists
-    # (create_resource_section only works on MSWin)
+    # create_resource_section only works on MSWin and
+    # does not work on Windows XP - requires Vista or
+    # above
     
-    $exe = $exe->create_resource_section;
+    $exe = $exe->create_resource_section if $exe->can_create_resource_section;
 
     # Get version information
     my $info = $exe->get_version_info;
@@ -126,18 +128,30 @@ Recognised keys are
 
 =head2 create_resource_section
 
-    $exe = $exe->create_resource_section if !$exe->has_resource_section;
+    $exe = $exe->create_resource_section if $exe->can_create_resource_section;
 
 If an executable file does not have an existing resource section, you must create
 one before attempting to add version, icon or manifest resources. The method
-create_resource_section is only available on MSWin platforms.
+create_resource_section is only available on MSWin platforms. Also, the method
+will fail if your windows version is Windows XP or below. You can check if it is
+possible to call create_resource_section by calling $exe->can_create_resource_section.
 After calling create_resource_section, the original Win32::Exe object does not
 reference the updated data. The method therefore returns a reference to a new
 Win32::Exe object that references the updated data.
 
 Always call as :
 
-$exe = $exe->create_resource_section if !$exe->has_resource_section;
+$exe = $exe->create_resource_section if $exe->can_create_resource_section;
+
+if the $exe already has a resource section, this call will safely return a reference
+to the original object without updating the original exe.
+
+=head2 can_create_resource_section
+
+    $exe = $exe->create_resource_section if $exe->can_create_resource_section;
+
+Check if the operating system and version allow addition of a resource section
+when none exists in the target executable.
 
 =head2 get_manifest
 
@@ -326,9 +340,20 @@ sub has_resource_section {
     return( $section ) ? 1 : 0;
 }
 
+sub can_create_resource_section {
+    my $self = shift;
+    return 0 if ($^O !~ /^mswin/i );
+    require Win32;
+    my ($winstring, $winmajor, $winminor, $winbuild, $winid) = Win32::GetOSVersion();
+    return ( $winmajor > 5 ) ? 1 : 0;
+}
+
 sub create_resource_section {
     my $self = shift;
     return $self if($self->has_resource_section || ( $^O !~ /^mswin/i ) );
+    if(!$self->can_create_resource_section) {
+        die('Cannot create resource section on this version of Windows');
+    }
     require Win32::Exe::InsertResourceSection;
     my $filename = (exists($self->{filename}) && (-f $self->{filename} )) ? $self->{filename} : undef;
     return $self if !$filename;
@@ -412,14 +437,14 @@ sub default_info {
     my $filename = File::Basename::basename($self->filename);
 
     return join(';',
-    "CompanyName=",
-    "FileDescription=",
+    "CompanyName= ",
+    "FileDescription= ",
     "FileVersion=0.0.0.0",
     "InternalName=$filename",
-    "LegalCopyright=",
-    "LegalTrademarks=",
+    "LegalCopyright= ",
+    "LegalTrademarks= ",
     "OriginalFilename=$filename",
-    "ProductName=",
+    "ProductName= ",
     "ProductVersion=0.0.0.0",
     );
 }
@@ -511,14 +536,14 @@ sub get_version_info {
 sub set_version_info {
     my ($self, $inputpairs) = @_;
     my $inputref;
-    if(ref($inputpairs eq 'HASH')) {
+    if(ref($inputpairs) eq 'HASH') {
         my @newinput = ();
-        push(@newinput, qq($_ = $inputpairs->{$_})) for (sort keys(%$inputpairs));
+        push(@newinput, qq($_=$inputpairs->{$_})) for (sort keys(%$inputpairs));
         $inputref = \@newinput;
     } else {
         $inputref = $inputpairs;
     }
-    my @info = ($self->default_info, @$inputpairs);
+    my @info = ($self->default_info, @$inputref);
     my @pairs;
     foreach my $pairs (map split(/\s*;\s*(?=[\w\\\/]+\s*=)/, $_), @info) {
         my ($key, $val) = split(/\s*=\s*/, $pairs, 2);

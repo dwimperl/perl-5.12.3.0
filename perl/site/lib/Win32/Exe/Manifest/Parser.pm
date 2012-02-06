@@ -2,7 +2,7 @@
 # Package       Win32::Exe::Manifest::Parser
 # Description:  XML Parser for Manifests
 # Created       Wed Apr 21 07:54:51 2010
-# SVN Id        $Id: Parser.pm 2 2010-04-30 13:09:56Z  $
+# SVN Id        $Id: Parser.pm 2 2010-11-30 16:40:31Z mark.dootson $
 # Copyright:    Copyright (c) 2010 Mark Dootson
 # Licence:      This program is free software; you can redistribute it 
 #               and/or modify it under the same terms as Perl itself
