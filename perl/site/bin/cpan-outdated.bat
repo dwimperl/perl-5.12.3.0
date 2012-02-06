@@ -16,7 +16,6 @@ use strict;
 use warnings;
 use Getopt::Long;
 use Pod::Usage;
-use ExtUtils::MakeMaker;
 use File::Temp;
 use File::Spec;
 use Config;
@@ -24,6 +23,7 @@ use version;
 use LWP::Simple ();
 use IO::Zlib;
 use CPAN::DistnameInfo;
+use Module::Metadata;
 use constant WIN32 => $^O eq 'MSWin32';
 
 our $VERSION = "0.18";
@@ -102,9 +102,12 @@ sub main {
             }
             $dist_latest_version{$info->dist} = $info->version;
 
-            my $inst_version = parse_version($path);
-               $inst_version  =~ s/\s+//; # workaround for Attribute::Params::Validate
-            next if $inst_version eq 'undef';
+            my $meta = do {
+                local $SIG{__WARN__} = sub {};
+                Module::Metadata->new_from_file($path);
+            };
+            my $inst_version = $meta->version($pkg);
+            next unless defined $inst_version;
             if (compare_version($inst_version, $version)) {
                 next if $seen{$dist}++;
                 if ($verbose) {
@@ -142,18 +145,6 @@ sub permissive_filter {
     s/[_h-z-]/./gi;                    # makepp 1.50.2vs.070506
     s/\.{2,}/./g;
     $_;
-}
-
-sub parse_version {
-    my $path = shift;
-    local $SIG{__WARN__} = sub {
-        # This is workaround for EU::MM's issue.
-        # following one-liner makes too long warnings.
-        #   perl -e 'use ExtUtils::MM; MM->parse_version("/usr/local/app/perl-5.10.1/lib/site_perl/5.10.1/Authen/Simple/Apache.pm")'
-        return if @_ && $_[0] =~ /^Could not eval/;
-        CORE::warn(@_);
-    };
-    MM->parse_version($path);
 }
 
 # taken from cpanminus
@@ -250,20 +241,6 @@ twaked to print the module's package names.
 For some tools such as L<cpanm> installing from packages could be a
 bit more useful since you can track to see the old version number
 where you upgrade from.
-
-=head1 DEPENDENCIES
-
-perl 5.8 or later (Actually I believe it works with pre 5.8 too but haven't tested).
-
-=over 4
-
-=item LWP to get a index file over HTTP.
-
-=item IO::Zlib to decode gziped index file.
-
-=item version.pm
-
-=back
 
 =head1 AUTHOR
 

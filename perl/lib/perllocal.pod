@@ -8028,3 +8028,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Feb  6 16:10:50 2012: C<Module> L<App::cpanoutdated|App::cpanoutdated>
+
+=over 4
+
+=item *
+
+C<installed into: C:\strawberry\perl\site\lib>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.20>
+
+=item *
+
+C<EXE_FILES: bin/cpan-outdated>
+
+=back
+
